@@ -1,36 +1,30 @@
 # utils/nidaq_utils.py
 
 import nidaqmx
-from nidaqmx.constants import AcquisitionType
-from nidaqmx.stream_readers import AnalogMultiChannelReader
 import numpy as np
+from nidaqmx.constants import ThermocoupleType, TemperatureUnits
 
-def list_devices():
-    """Liste les périphériques DAQ disponibles."""
-    system = nidaqmx.system.System.local()
-    return [device.name for device in system.devices]
-
-def setup_multichannel_task(channels, rate=1000.0, samples_per_channel=100):
-    """
-    Crée et configure une tâche DAQ pour plusieurs canaux analogiques.
-
-    Args:
-        channels (list): Liste des canaux ex: ["Dev1/ai0", "Dev1/ai1"]
-        rate (float): Fréquence d'échantillonnage (Hz)
-        samples_per_channel (int): Nombre d'échantillons par canal
-
-    Returns:
-        task: tâche DAQmx configurée
-        reader: lecteur de données multicanaux
-        buffer: tampon de données numpy
-    """
+def setup_multichannel_task(channels, rate, samples_per_channel):
     task = nidaqmx.Task()
-    task.ai_channels.add_ai_voltage_chan(','.join(channels))
-    task.timing.cfg_samp_clk_timing(rate,
-                                    sample_mode=AcquisitionType.CONTINUOUS,
-                                    samps_per_chan=samples_per_channel)
-    
-    buffer = np.zeros((len(channels), samples_per_channel), dtype=np.float64)
-    reader = AnalogMultiChannelReader(task.in_stream)
+
+    for ch in channels:
+        task.ai_channels.add_ai_thrmcpl_chan(
+            physical_channel=ch,
+            name_to_assign_to_channel='',
+            min_val=0.0,
+            max_val=400.0,  # plage typique pour thermocouples type T
+            units=TemperatureUnits.DEG_C,
+            thermocouple_type=ThermocoupleType.T,
+            cjc_source=nidaqmx.constants.CJCSource.BUILT_IN
+        )
+
+    task.timing.cfg_samp_clk_timing(
+        rate,
+        sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS,
+        samps_per_chan=samples_per_channel
+    )
+
+    buffer = np.zeros((len(channels), samples_per_channel))
+    reader = nidaqmx.stream_readers.AnalogMultiChannelReader(task.in_stream)
 
     return task, reader, buffer
