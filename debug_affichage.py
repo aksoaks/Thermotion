@@ -87,10 +87,28 @@ class DeviceConfigDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Device Connection")
         self.setMinimumSize(800, 600)
-        
         self.detected_interfaces = self.detect_devices()
         self.load_config()
         self.init_ui()
+        for interface in self.detected_interfaces:
+            group = QGroupBox(f"{interface['chassis']} > {interface['name']} ({interface['model']})")
+            group.setCheckable(True)
+            group.setChecked(True)
+            
+            group_layout = QVBoxLayout()
+            
+            # AJOUTER CE BLOC POUR MODIFIER LE NOM DU MODULE
+            module_name_layout = QHBoxLayout()
+            module_name_layout.addWidget(QLabel("Module display name:"))
+            module_name_edit = QLineEdit(interface['name'])
+            module_name_layout.addWidget(module_name_edit)
+            group_layout.addLayout(module_name_layout)
+            
+            # [...] (le reste du code existant)
+            
+            scroll_layout.addWidget(group)
+            # Modifier cette ligne pour inclure module_name_edit:
+            self.interface_widgets.append((group, module_name_edit, self.channel_widgets, interface))
     
     def detect_devices(self):
         """Détection des appareils NI-DAQmx avec filtrage des modules seulement"""
@@ -269,13 +287,16 @@ class DeviceConfigDialog(QDialog):
         """Retourne la configuration complète"""
         config = {}
         
-        for group, channel_widgets, interface in self.interface_widgets:
+        for group, module_name_edit, channel_widgets, interface in self.interface_widgets:
             if group.isChecked():
+                module_display_name = module_name_edit.text()  # Récupère le nom personnalisé
+                
                 for cb, name_edit, color_btn, original_ch in channel_widgets:
                     if cb.isChecked():
                         channel_id = f"{interface['name']}/{original_ch}"
                         config[channel_id] = {
                             "device_name": interface['name'],
+                            "module_display_name": module_display_name,  # Ajout du nom du module
                             "chassis_name": interface['chassis'],
                             "original_id": original_ch,
                             "display_name": name_edit.text(),
@@ -283,7 +304,6 @@ class DeviceConfigDialog(QDialog):
                             "model": interface['model'],
                             "visible": True
                         }
-        
         return config
 
 class MainWindow(QMainWindow):
@@ -381,6 +401,7 @@ class MainWindow(QMainWindow):
         # Créer les courbes et les éléments de la liste
         for channel_id, config in self.active_config.items():
             # Création de la courbe
+            full_display_name = f"{config.get('module_display_name', config['device_name'])} - {config['display_name']}"
             curve = self.plot_widget.plot([], [], name=config["display_name"], 
                                         pen=pg.mkPen(color=config["color"], width=2))
             
