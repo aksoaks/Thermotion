@@ -10,6 +10,7 @@ from PySide6.QtGui import QColor, QIcon
 import pyqtgraph as pg
 import nidaqmx.system
 from nidaqmx.errors import DaqError
+from functools import partial
 
 CONFIG_FILE = "thermotion_config.json"
 
@@ -350,7 +351,8 @@ class MainWindow(QMainWindow):
                 edit_btn = QPushButton()
                 edit_btn.setIcon(QIcon.fromTheme("document-edit"))
                 edit_btn.setFixedSize(24, 24)
-                edit_btn.clicked.connect(lambda _, c=channel_id: self.edit_channel(c))
+                edit_btn.clicked.connect(lambda checked, c=channel_id: self.edit_channel(c))
+                #Êedit_btn.clicked.connect(partial(self.edit_channel, channel_id))
                 item_layout.addWidget(edit_btn)
                 
                 item.setSizeHint(widget.sizeHint())
