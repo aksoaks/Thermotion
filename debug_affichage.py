@@ -259,7 +259,7 @@ class MainWindow(QMainWindow):
         
         # Title
         title = QLabel("Active Channels")
-        title.setStyleSheet("font-weight: bold; font-size: 14px;")
+        title.setStyleSheet("font-weight: bold; font-size: 18px;")
         control_layout.addWidget(title)
         
         # Channel List
