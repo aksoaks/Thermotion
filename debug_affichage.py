@@ -228,7 +228,7 @@ class DeviceScannerDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Thermotion - Debug Interface")
+        self.setWindowTitle("Thermotion")
         self.setGeometry(100, 100, 1200, 800)
         
         self.config = {}
@@ -366,14 +366,22 @@ class MainWindow(QMainWindow):
     
     def edit_channel(self, channel_id):
         """Edit channel configuration"""
+        # Créer une couleur unique basée sur l'ID du canal
+        color = "#{:06x}".format(hash(channel_id) % 0xffffff)
+        
+        # Ouvrir la boîte de dialogue avec les paramètres actuels
         dialog = ChannelConfigDialog({
             "display_name": channel_id.split('/')[-1],
-            "color": "#{:06x}".format(hash(channel_id) % 0xffffff
+            "color": color,
+            "visible": True
         }, self)
         
         if dialog.exec() == QDialog.Accepted:
             print(f"Updated config for {channel_id}: {dialog.get_config()}")
-            # Would update config and save
+                # Ici vous devriez:
+                # 1. Mettre à jour self.config
+                # 2. Sauvegarder dans le fichier JSON
+                # 3. Actualiser l'affichage
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
