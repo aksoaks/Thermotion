@@ -214,8 +214,8 @@ class DeviceScannerDialog(QDialog):
         channel_id = f"{device_name}/{channel_name}"
         channel_data = {
             "display_name": channel_name,
-            "color": "#{:06x}".format(hash(channel_id) % 0xffffff
-            "visible": True)
+            "color": "#{:06x}".format(hash(channel_id) % 0xffffff),
+            "visible": True
         }
         
         dialog = ChannelConfigDialog(channel_data, self)
