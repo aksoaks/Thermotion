@@ -351,8 +351,7 @@ class MainWindow(QMainWindow):
                 edit_btn = QPushButton()
                 edit_btn.setIcon(QIcon.fromTheme("document-edit"))
                 edit_btn.setFixedSize(24, 24)
-                edit_btn.clicked.connect(lambda checked, c=channel_id: self.edit_channel(c))
-                #Êedit_btn.clicked.connect(partial(self.edit_channel, channel_id))
+                edit_btn.clicked.connect(lambda checked=False, cid=channel_id: self.edit_channel(cid))
                 item_layout.addWidget(edit_btn)
                 
                 item.setSizeHint(widget.sizeHint())
