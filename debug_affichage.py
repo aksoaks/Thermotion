@@ -148,7 +148,7 @@ class DeviceScannerDialog(QDialog):
                     
                     edit_btn = QPushButton("Edit")
                     edit_btn.setFixedWidth(80)
-                    edit_btn.clicked.connect(lambda _, d=device.name, c=ch: self.edit_channel(d, c))
+                    edit_btn.clicked.connect(partial(self.edit_channel, device.name, ch))
                     
                     ch_layout.addWidget(edit_btn)
                     channels_layout.addLayout(ch_layout)
