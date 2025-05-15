@@ -1,12 +1,12 @@
 import sys
 import json
 import os
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                              QHBoxLayout, QPushButton, QLabel, QDialog, 
-                              QLineEdit, QColorDialog, QListWidget, QListWidgetItem, 
-                              QCheckBox, QScrollArea, QGroupBox, QMessageBox, QFrame)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                              QPushButton, QLabel, QDialog, QLineEdit, QColorDialog, QListWidget,
+                              QListWidgetItem, QCheckBox, QScrollArea, QGroupBox, QMessageBox,
+                              QFrame, QSizePolicy)
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QIcon
+from PySide6.QtGui import QColor, QIcon, QFont
 import pyqtgraph as pg
 import nidaqmx.system
 from nidaqmx.errors import DaqError
@@ -19,6 +19,7 @@ class ChannelConfigDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Channel Settings")
         self.setFixedSize(400, 300)
+        self.setStyleSheet("font-size: 12px;")
         
         self.channel_data = channel_data
         self.init_ui()
@@ -45,11 +46,6 @@ class ChannelConfigDialog(QDialog):
         
         layout.addLayout(color_layout)
         
-        # Visibility
-        self.visible_cb = QCheckBox("Visible")
-        self.visible_cb.setChecked(self.channel_data.get("visible", True))
-        layout.addWidget(self.visible_cb)
-        
         # Buttons
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -74,8 +70,26 @@ class ChannelConfigDialog(QDialog):
         return {
             "display_name": self.name_edit.text(),
             "color": self.color_btn.styleSheet().split(':')[1].split(';')[0],
-            "visible": self.visible_cb.isChecked()
+            "visible": True
         }
+
+class ChannelListWidget(QListWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("""
+            QListWidget {
+                font-size: 12px;
+            }
+            QListWidget::item {
+                height: 28px;
+            }
+        """)
+
+    def mouseDoubleClickEvent(self, event):
+        item = self.itemAt(event.pos())
+        if item and item.data(Qt.UserRole):
+            self.parent().edit_channel(item.data(Qt.UserRole))
+        super().mouseDoubleClickEvent(event)
 
 class DeviceScannerDialog(QDialog):
     config_updated = Signal(dict)
@@ -84,6 +98,15 @@ class DeviceScannerDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Device Configuration")
         self.setMinimumSize(800, 600)
+        self.setStyleSheet("""
+            QDialog {
+                font-size: 12px;
+            }
+            QGroupBox {
+                font-size: 12px;
+                font-weight: bold;
+            }
+        """)
         
         self.devices = self.detect_devices()
         self.init_ui()
@@ -131,16 +154,18 @@ class DeviceScannerDialog(QDialog):
             name_layout = QHBoxLayout()
             name_layout.addWidget(QLabel("Module Name:"))
             name_edit = QLineEdit(device.name)
+            name_edit.setStyleSheet("font-size: 12px;")
             name_layout.addWidget(name_edit)
             layout_inner.addLayout(name_layout)
             
             # Channels
             channels_group = QGroupBox("Channels")
+            channels_group.setStyleSheet("font-size: 12px;")
             channels_layout = QVBoxLayout()
             
             try:
                 channels = [c.name.split('/')[-1] for c in device.ai_physical_chans]
-                for i, ch in enumerate(sorted(channels)):
+                for ch in sorted(channels):
                     ch_layout = QHBoxLayout()
                     
                     ch_layout.addWidget(QLabel(ch))
@@ -148,6 +173,7 @@ class DeviceScannerDialog(QDialog):
                     
                     edit_btn = QPushButton("Edit")
                     edit_btn.setFixedWidth(80)
+                    edit_btn.setStyleSheet("font-size: 12px;")
                     edit_btn.clicked.connect(partial(self.edit_channel, device.name, ch))
                     
                     ch_layout.addWidget(edit_btn)
@@ -171,10 +197,12 @@ class DeviceScannerDialog(QDialog):
         btn_layout.addStretch()
         
         apply_btn = QPushButton("Apply")
+        apply_btn.setStyleSheet("font-size: 12px;")
         apply_btn.clicked.connect(self.apply_config)
         btn_layout.addWidget(apply_btn)
         
         cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet("font-size: 12px;")
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
         
@@ -184,25 +212,15 @@ class DeviceScannerDialog(QDialog):
     def edit_channel(self, device_name, channel_name):
         """Edit individual channel settings"""
         channel_id = f"{device_name}/{channel_name}"
-        channel_data = self.load_channel_config(channel_id)
+        channel_data = {
+            "display_name": channel_name,
+            "color": "#{:06x}".format(hash(channel_id) % 0xffffff
+            "visible": True)
+        }
         
         dialog = ChannelConfigDialog(channel_data, self)
         if dialog.exec() == QDialog.Accepted:
-            self.save_channel_config(channel_id, dialog.get_config())
-    
-    def load_channel_config(self, channel_id):
-        """Load channel config with defaults"""
-        default_color = "#{:06x}".format(hash(channel_id) % 0xffffff)
-        return {
-            "display_name": channel_id.split('/')[-1],
-            "color": default_color,
-            "visible": True
-        }
-    
-    def save_channel_config(self, channel_id, config):
-        """Save channel config (would be saved to JSON later)"""
-        print(f"Saving config for {channel_id}: {config}")
-        # In full implementation, this would update the complete config
+            print(f"Updated config for {channel_id}: {dialog.get_config()}")
     
     def apply_config(self):
         """Compile and emit final configuration"""
@@ -215,7 +233,7 @@ class DeviceScannerDialog(QDialog):
             if group.isChecked():
                 config["devices"][device.name] = {
                     "display_name": name_edit.text(),
-                    "channels": {}  # Would be populated with channel data
+                    "channels": {}
                 }
         
         self.config_updated.emit(config)
@@ -229,10 +247,23 @@ class DeviceScannerDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Thermotion")
+        self.setWindowTitle("Thermotion - Debug Interface")
         self.setGeometry(100, 100, 1200, 800)
+        self.setStyleSheet("""
+            QMainWindow {
+                font-size: 12px;
+            }
+            QPushButton {
+                font-size: 12px;
+                min-height: 25px;
+            }
+            QLabel {
+                font-size: 12px;
+            }
+        """)
         
         self.config = {}
+        self.graph_items = {}
         self.init_ui()
         self.load_config()
     
@@ -259,38 +290,32 @@ class MainWindow(QMainWindow):
         
         # Title
         title = QLabel("Active Channels")
-        title.setStyleSheet("font-weight: bold; font-size: 18px;")
+        title.setStyleSheet("font-weight: bold; font-size: 14px;")
         control_layout.addWidget(title)
         
         # Channel List
-        self.channel_list = QListWidget()
-        self.channel_list.itemClicked.connect(self.toggle_channel)
+        self.channel_list = ChannelListWidget(self)
         control_layout.addWidget(self.channel_list)
         
         # Buttons
         btn_layout = QHBoxLayout()
         
-        scan_btn = QPushButton("Scan Devices")
-        scan_btn.clicked.connect(self.scan_devices)
-        btn_layout.addWidget(scan_btn)
+        self.scan_btn = QPushButton("Scan Devices")
+        self.scan_btn.clicked.connect(self.scan_devices)
+        btn_layout.addWidget(self.scan_btn)
         
         self.start_btn = QPushButton("Start")
         self.start_btn.setEnabled(False)
+        self.start_btn.clicked.connect(self.start_measurement)
         btn_layout.addWidget(self.start_btn)
+        
+        self.stop_btn = QPushButton("Stop")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.clicked.connect(self.stop_measurement)
+        btn_layout.addWidget(self.stop_btn)
         
         control_layout.addLayout(btn_layout)
         layout.addWidget(control_panel, 25)  # 25% width
-    
-    def scan_devices(self):
-        """Open device scanner dialog"""
-        dialog = DeviceScannerDialog(self)
-        dialog.config_updated.connect(self.update_config)
-        dialog.exec()
-    
-    def update_config(self, new_config):
-        """Update configuration"""
-        self.config = new_config
-        self.update_display()
     
     def load_config(self):
         """Load config from file"""
@@ -310,83 +335,169 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Could not save config:\n{str(e)}")
     
+    def scan_devices(self):
+        """Open device scanner dialog"""
+        dialog = DeviceScannerDialog(self)
+        dialog.config_updated.connect(self.update_config)
+        dialog.exec()
+    
+    def update_config(self, new_config):
+        """Update configuration"""
+        self.config = new_config
+        self.save_config()
+        self.update_display()
+    
     def update_display(self):
         """Update UI based on current config"""
         self.plot_widget.clear()
         self.channel_list.clear()
+        self.graph_items = {}
         
         if not self.config.get("devices"):
+            self.start_btn.setEnabled(False)
             return
         
-        # Add test data (replace with real acquisition)
+        # Organize channels by module
+        modules = {}
         for device_name, device_cfg in self.config["devices"].items():
+            if device_name not in modules:
+                modules[device_name] = {
+                    "display_name": device_cfg.get("display_name", device_name),
+                    "channels": []
+                }
+            
+            # Add simulated channels (replace with real channels from config)
             for i in range(4):  # Simulate 4 channels per device
                 channel_id = f"{device_name}/ai{i}"
                 color = "#{:06x}".format(hash(channel_id) % 0xffffff)
                 
+                modules[device_name]["channels"].append({
+                    "id": channel_id,
+                    "display_name": f"{device_cfg.get('display_name', device_name)} Ch{i}",
+                    "color": color,
+                    "visible": True
+                })
+        
+        # Add groups to plot and list
+        for i, (module_name, module_data) in enumerate(modules.items()):
+            # Add separator for modules (except first one)
+            if i > 0:
+                separator = QFrame()
+                separator.setFrameShape(QFrame.HLine)
+                separator.setFrameShadow(QFrame.Sunken)
+                
+                separator_item = QListWidgetItem()
+                separator_item.setFlags(separator_item.flags() & ~Qt.ItemIsSelectable)
+                separator_item.setSizeHint(separator.sizeHint())
+                self.channel_list.addItem(separator_item)
+                self.channel_list.setItemWidget(separator_item, separator)
+            
+            # Add module header
+            header = QListWidgetItem(f"--- {module_data['display_name']} ---")
+            header.setFlags(header.flags() & ~Qt.ItemIsSelectable)
+            header.setFont(QFont("Arial", 10, QFont.Bold))
+            self.channel_list.addItem(header)
+            
+            # Add channels
+            for channel in module_data["channels"]:
                 # Create plot item
                 curve = self.plot_widget.plot(
                     [0, 1, 2, 3, 4], 
-                    [i, i+1, i+2, i+3, i+4],
-                    name=f"{device_cfg['display_name']} Ch{i}",
-                    pen=pg.mkPen(color=color, width=2)
+                    [0, 1, 4, 9, 16],  # Test data
+                    name=channel["display_name"],
+                    pen=pg.mkPen(color=channel["color"], width=2)
                 )
                 
-                # Add to channel list
+                # Create list item
                 item = QListWidgetItem()
+                item.setData(Qt.UserRole, channel["id"])
                 widget = QWidget()
-                item_layout = QHBoxLayout(widget)
+                layout = QHBoxLayout(widget)
+                layout.setContentsMargins(2, 2, 2, 2)
+                
+                # Visibility checkbox
+                cb = QCheckBox()
+                cb.setChecked(channel["visible"])
+                cb.stateChanged.connect(partial(self.toggle_channel_visibility, channel["id"]))
+                layout.addWidget(cb)
                 
                 # Color indicator
                 color_label = QLabel()
-                color_label.setFixedSize(20, 20)
-                color_label.setStyleSheet(f"background-color: {color}; border: 1px solid #000;")
-                item_layout.addWidget(color_label)
+                color_label.setFixedSize(16, 16)
+                color_label.setStyleSheet(f"background-color: {channel['color']}; border: 1px solid #000;")
+                layout.addWidget(color_label)
                 
                 # Channel name
-                item_layout.addWidget(QLabel(f"{device_cfg['display_name']} Ch{i}"))
-                item_layout.addStretch()
+                name_label = QLabel(channel["display_name"])
+                name_label.setStyleSheet("font-size: 12px;")
+                layout.addWidget(name_label)
+                layout.addStretch()
                 
                 # Edit button
                 edit_btn = QPushButton()
                 edit_btn.setIcon(QIcon.fromTheme("document-edit"))
                 edit_btn.setFixedSize(24, 24)
-                edit_btn.clicked.connect(lambda checked=False, cid=channel_id: self.edit_channel(cid))
-                item_layout.addWidget(edit_btn)
+                edit_btn.clicked.connect(partial(self.edit_channel, channel["id"]))
+                layout.addWidget(edit_btn)
                 
                 item.setSizeHint(widget.sizeHint())
                 self.channel_list.addItem(item)
                 self.channel_list.setItemWidget(item, widget)
+                
+                # Store references
+                self.graph_items[channel["id"]] = {
+                    "curve": curve,
+                    "config": channel,
+                    "checkbox": cb
+                }
         
         self.start_btn.setEnabled(True)
     
-    def toggle_channel(self, item):
+    def toggle_channel_visibility(self, channel_id, state):
         """Toggle channel visibility"""
-        # Implementation would toggle curve visibility
-        pass
+        if channel_id in self.graph_items:
+            self.graph_items[channel_id]["curve"].setVisible(state == Qt.Checked)
+            self.graph_items[channel_id]["config"]["visible"] = state == Qt.Checked
+            self.save_config()
     
     def edit_channel(self, channel_id):
         """Edit channel configuration"""
-        # Créer une couleur unique basée sur l'ID du canal
-        color = "#{:06x}".format(hash(channel_id) % 0xffffff)
+        if channel_id not in self.graph_items:
+            return
         
-        # Ouvrir la boîte de dialogue avec les paramètres actuels
-        dialog = ChannelConfigDialog({
-            "display_name": channel_id.split('/')[-1],
-            "color": color,
-            "visible": True
-        }, self)
-        
+        dialog = ChannelConfigDialog(self.graph_items[channel_id]["config"], self)
         if dialog.exec() == QDialog.Accepted:
-            print(f"Updated config for {channel_id}: {dialog.get_config()}")
-                # Ici vous devriez:
-                # 1. Mettre à jour self.config
-                # 2. Sauvegarder dans le fichier JSON
-                # 3. Actualiser l'affichage
+            new_config = dialog.get_config()
+            self.graph_items[channel_id]["config"].update(new_config)
+            self.graph_items[channel_id]["checkbox"].setChecked(new_config["visible"])
+            self.graph_items[channel_id]["curve"].setData(
+                name=new_config["display_name"],
+                pen=pg.mkPen(color=new_config["color"], width=2)
+            )
+            self.save_config()
+            self.update_display()
+    
+    def start_measurement(self):
+        """Start acquisition"""
+        self.scan_btn.setEnabled(False)
+        self.start_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
+        QMessageBox.information(self, "Info", "Measurement started (simulation)")
+    
+    def stop_measurement(self):
+        """Stop acquisition"""
+        self.scan_btn.setEnabled(True)
+        self.start_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        QMessageBox.information(self, "Info", "Measurement stopped (simulation)")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    
+    # Set default icon theme if not available
+    if not QIcon.hasThemeIcon("document-edit"):
+        QIcon.setThemeName("breeze")
     
     window = MainWindow()
     window.show()
