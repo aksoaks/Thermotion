@@ -369,7 +369,7 @@ class MainWindow(QMainWindow):
             # Add simulated channels (replace with real channels from config)
             for i in range(4):  # Simulate 4 channels per device
                 channel_id = f"{device_name}/ai{i}"
-                color = "#{:06x}".format(hash(channel_id) % 0xffffff)
+                color = "#{:06x}".format(hash(channel_id) % 0xffffff),
                 
                 modules[device_name]["channels"].append({
                     "id": channel_id,
