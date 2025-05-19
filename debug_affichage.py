@@ -385,18 +385,46 @@ class MainWindow(QMainWindow):
                 separator = QFrame()
                 separator.setFrameShape(QFrame.HLine)
                 separator.setFrameShadow(QFrame.Sunken)
+                separator.setStyleSheet("color: #888;")
                 
                 separator_item = QListWidgetItem()
                 separator_item.setFlags(separator_item.flags() & ~Qt.ItemIsSelectable)
-                separator_item.setSizeHint(separator.sizeHint())
+                separator_item.setSizeHint(QSize(0, 10))
                 self.channel_list.addItem(separator_item)
                 self.channel_list.setItemWidget(separator_item, separator)
             
-            # Add module header
-            header = QListWidgetItem(f"--- {module_data['display_name']} ---")
-            header.setFlags(header.flags() & ~Qt.ItemIsSelectable)
-            header.setFont(QFont("Arial", 10, QFont.Bold))
-            self.channel_list.addItem(header)
+            # Module header with visibility toggle
+            header_widget = QWidget()
+            header_layout = QHBoxLayout(header_widget)
+            header_layout.setContentsMargins(5, 5, 5, 5)
+            
+            # Module visibility checkbox
+            module_cb = QCheckBox()
+            module_cb.setChecked(True)
+            module_cb.stateChanged.connect(partial(self.toggle_module_visibility, module_name))
+            header_layout.addWidget(module_cb)
+            
+            # Centered module name
+            name_label = QLabel(f" {module_data['display_name']} ")
+            name_label.setAlignment(Qt.AlignCenter)
+            name_label.setStyleSheet("""
+                font-weight: bold;
+                font-size: 12px;
+                padding: 3px;
+            """)
+            header_layout.addWidget(name_label, stretch=1)
+            
+            header_item = QListWidgetItem()
+            header_item.setFlags(header_item.flags() & ~Qt.ItemIsSelectable)
+            header_item.setSizeHint(header_widget.sizeHint())
+            self.channel_list.addItem(header_item)
+            self.channel_list.setItemWidget(header_item, header_widget)
+            
+            # Store module checkbox reference
+            self.module_widgets[module_name] = {
+                'checkbox': module_cb,
+                'channels': []
+            }
             
             # Add channels
             for channel in module_data["channels"]:
@@ -409,38 +437,7 @@ class MainWindow(QMainWindow):
                 )
                 
                 # Create list item
-                item = QListWidgetItem()
-                item.setData(Qt.UserRole, channel["id"])
-                widget = QWidget()
-                layout = QHBoxLayout(widget)
-                layout.setContentsMargins(2, 2, 2, 2)
-                
-                # Visibility checkbox
-                cb = QCheckBox()
-                cb.setChecked(channel["visible"])
-                cb.stateChanged.connect(partial(self.toggle_channel_visibility, channel["id"]))
-                layout.addWidget(cb)
-                
-                # Color indicator
-                color_label = QLabel()
-                color_label.setFixedSize(16, 16)
-                color_label.setStyleSheet(f"background-color: {channel['color']}; border: 1px solid #000;")
-                layout.addWidget(color_label)
-                
-                # Channel name
-                name_label = QLabel(channel["display_name"])
-                name_label.setStyleSheet("font-size: 12px;")
-                layout.addWidget(name_label)
-                layout.addStretch()
-                
-                # Edit button
-                edit_btn = QPushButton()
-                edit_btn.setIcon(QIcon.fromTheme("document-edit"))
-                edit_btn.setFixedSize(24, 24)
-                edit_btn.clicked.connect(partial(self.edit_channel, channel["id"]))
-                layout.addWidget(edit_btn)
-                
-                item.setSizeHint(widget.sizeHint())
+                item, widget, cb = self.create_channel_widget(channel)
                 self.channel_list.addItem(item)
                 self.channel_list.setItemWidget(item, widget)
                 
@@ -450,15 +447,70 @@ class MainWindow(QMainWindow):
                     "config": channel,
                     "checkbox": cb
                 }
+                self.module_widgets[module_name]['channels'].append(channel["id"])
         
         self.start_btn.setEnabled(True)
-    
-    def toggle_channel_visibility(self, channel_id, state):
-        """Toggle channel visibility"""
-        if channel_id in self.graph_items:
-            self.graph_items[channel_id]["curve"].setVisible(state == Qt.Checked)
-            self.graph_items[channel_id]["config"]["visible"] = state == Qt.Checked
-            self.save_config()
+
+    def create_channel_widget(self, channel):
+        """Helper method to create channel widget"""
+        item = QListWidgetItem()
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        
+        # Visibility checkbox
+        cb = QCheckBox()
+        cb.setChecked(channel["visible"])
+        cb.stateChanged.connect(partial(self.toggle_channel_visibility, channel["id"]))
+        layout.addWidget(cb)
+        
+        # Color indicator
+        color_label = QLabel()
+        color_label.setFixedSize(16, 16)
+        color_label.setStyleSheet(f"""
+            background-color: {channel['color']};
+            border: 1px solid #000;
+            border-radius: 3px;
+        """)
+        layout.addWidget(color_label)
+        
+        # Channel name
+        name_label = QLabel(channel["display_name"])
+        name_label.setStyleSheet("font-size: 12px;")
+        layout.addWidget(name_label)
+        layout.addStretch()
+        
+        # Edit button
+        edit_btn = QPushButton()
+        edit_btn.setIcon(QIcon.fromTheme("document-edit"))
+        edit_btn.setFixedSize(24, 24)
+        edit_btn.clicked.connect(partial(self.edit_channel, channel["id"]))
+        layout.addWidget(edit_btn)
+        
+        item.setSizeHint(widget.sizeHint())
+        return item, widget, cb
+
+    def toggle_module_visibility(self, module_name, state):
+        """Toggle visibility for all channels in a module"""
+        if module_name not in self.module_widgets:
+            return
+        
+        # Update all channels in module
+        any_visible = False
+        for channel_id in self.module_widgets[module_name]['channels']:
+            if channel_id in self.graph_items:
+                self.graph_items[channel_id]["curve"].setVisible(state)
+                self.graph_items[channel_id]["checkbox"].setChecked(state)
+                self.graph_items[channel_id]["config"]["visible"] = state
+                any_visible = any_visible or state
+        
+        # Update module checkbox without triggering signal
+        self.module_widgets[module_name]['checkbox'].blockSignals(True)
+        self.module_widgets[module_name]['checkbox'].setChecked(any_visible)
+        self.module_widgets[module_name]['checkbox'].blockSignals(False)
+        
+        # Save configuration
+        self.save_config()
     
     def edit_channel(self, channel_id):
         """Edit channel configuration"""
