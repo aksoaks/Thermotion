@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                               QListWidgetItem, QCheckBox, QScrollArea, QGroupBox, QMessageBox,
                               QFrame, QSizePolicy)
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QColor, QIcon, QFont
+from PySide6.QtGui import QColor, QIcon, QFont, QIcon, QPixmap
 import pyqtgraph as pg
 import nidaqmx.system
 from nidaqmx.errors import DaqError
@@ -249,6 +249,11 @@ class DeviceScannerDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        icon_path = "c:/user/SF66405/Code/Python/cDAQ/icon.jpg"
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        else:
+            print(f"Icon file not found at {icon_path}")
         self.setWindowTitle("Thermotion - Debug Interface")
         self.setGeometry(100, 100, 1200, 800)
         self.setStyleSheet("""
@@ -269,7 +274,10 @@ class MainWindow(QMainWindow):
         self.graph_items = {}
         self.init_ui()
         self.load_config()
-    
+        if self.config.get("devices"):
+            self.update_display()
+            self.check_devices_online()  # Ajoutez cette ligne
+
     def init_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
@@ -330,6 +338,30 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.warning(self, "Warning", f"Could not load config:\n{str(e)}")
     
+    def check_devices_online(self):
+        """Check if configured devices are online"""
+        try:
+            system = nidaqmx.system.System.local()
+            online_devices = [d.name for d in system.devices]
+            
+            for module_name in self.module_widgets:
+                device_name = next((k for k,v in self.config["devices"].items() 
+                                if v["display_name"] == module_name), None)
+                if device_name and device_name not in online_devices:
+                    # Add offline indicator
+                    for i in range(self.channel_list.count()):
+                        item = self.channel_list.item(i)
+                        widget = self.channel_list.itemWidget(item)
+                        if widget and module_name in widget.text():
+                            # Add offline label
+                            offline_label = QLabel("(offline)")
+                            offline_label.setStyleSheet("color: red;")
+                            layout = widget.layout()
+                            if layout:
+                                layout.addWidget(offline_label)
+        except Exception as e:
+            print(f"Device check error: {str(e)}")
+
     def save_config(self):
         """Save config to file"""
         try:
@@ -481,8 +513,9 @@ class MainWindow(QMainWindow):
                 layout.addStretch()
 
                 # Edit button
-                edit_btn = QPushButton()
-                edit_btn.setIcon(QIcon.fromTheme("document-edit"))
+                edit_btn = QPushButton("✏️")  # Unicode pencil character
+                edit_btn.setStyleSheet("font-size: 14px; padding: 0px;")
+                edit_btn.setFixedSize(24, 24)
                 edit_btn.setFixedSize(24, 24)
                 edit_btn.clicked.connect(
                     partial(self.edit_channel, channel["id"])
