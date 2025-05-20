@@ -18,8 +18,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [2/5] Ajout des fichiers modifies...
-git add .
+:: Vérifie si Thermocouple_Data est un sous-module
+git submodule status Thermocouple_Data >nul 2>&1
+if not errorlevel 1 (
+    echo [INFO] 'Thermocouple_Data' est detecte comme un sous-module Git.
+    echo [ATTENTION] Les modifications dans les sous-modules doivent etre committees et poussees separement.
+)
+
+echo [2/5] Ajout des fichiers modifies (y compris les fichiers non suivis)...
+git add --all
 if errorlevel 1 (
     echo [ERREUR] Probleme lors de l'ajout des fichiers.
     timeout /t 5
