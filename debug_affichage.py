@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                               QPushButton, QLabel, QDialog, QLineEdit, QColorDialog, QListWidget,
                               QListWidgetItem, QCheckBox, QScrollArea, QGroupBox, QMessageBox,
                               QFrame, QSizePolicy)
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QColor, QIcon, QFont
 import pyqtgraph as pg
 import nidaqmx.system
@@ -84,6 +84,8 @@ class ChannelListWidget(QListWidget):
                 height: 28px;
             }
         """)
+        self.module_widgets = {}  # Initialisation ajoutée ici
+        self.graph_items = {}
 
     def mouseDoubleClickEvent(self, event):
         item = self.itemAt(event.pos())
@@ -263,6 +265,7 @@ class MainWindow(QMainWindow):
         """)
         
         self.config = {}
+        self.module_widgets = {}  # Initialisation du dictionnaire
         self.graph_items = {}
         self.init_ui()
         self.load_config()
@@ -349,9 +352,20 @@ class MainWindow(QMainWindow):
     
     def update_display(self):
         """Update UI based on current config"""
-        self.plot_widget.clear()
-        self.channel_list.clear()
-        self.graph_items = {}
+        if i > 0:
+            separator = QFrame()
+            separator.setFrameShape(QFrame.HLine)
+            separator.setFrameShadow(QFrame.Sunken)
+            separator.setStyleSheet("color: #888;")
+            
+            separator_item = QListWidgetItem()
+            separator_item.setFlags(separator_item.flags() & ~Qt.ItemIsSelectable)
+            separator_item.setSizeHint(QSize(0, 10))  # Maintenant QSize est importé
+            self.channel_list.addItem(separator_item)
+            self.channel_list.setItemWidget(separator_item, separator)
+            self.plot_widget.clear()
+            self.channel_list.clear()
+            self.graph_items = {}
         
         if not self.config.get("devices"):
             self.start_btn.setEnabled(False)
@@ -389,7 +403,8 @@ class MainWindow(QMainWindow):
                 
                 separator_item = QListWidgetItem()
                 separator_item.setFlags(separator_item.flags() & ~Qt.ItemIsSelectable)
-                separator_item.setSizeHint(QSize(0, 10))
+                from PySide6.QtCore import QSize  # Ajouter en haut du fichier
+                separator_item.setSizeHint(QSize(10, 10))  # (width, height)
                 self.channel_list.addItem(separator_item)
                 self.channel_list.setItemWidget(separator_item, separator)
             
@@ -419,7 +434,15 @@ class MainWindow(QMainWindow):
             header_item.setSizeHint(header_widget.sizeHint())
             self.channel_list.addItem(header_item)
             self.channel_list.setItemWidget(header_item, header_widget)
-            
+            if not hasattr(self, 'module_widgets'):
+                self.module_widgets = {}  # Sécurité supplémentaire
+
+            # Initialisation propre du module :
+            self.module_widgets[module_name] = {
+                'checkbox': module_cb,
+                'channels': [ch["id"] for ch in module_data["channels"]]
+            }
+
             # Store module checkbox reference
             self.module_widgets[module_name] = {
                 'checkbox': module_cb,
