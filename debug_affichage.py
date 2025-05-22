@@ -322,7 +322,7 @@ class MainWindow(QMainWindow):
         self.plot_widget.showGrid(x=True, y=True)
         self.plot_widget.setLabel('left', 'Temperature', 'degC')
         self.plot_widget.setLabel('bottom', 'Time', 's')
-        layout.addWidget(self.plot_widget, 75)  # 75% width
+        layout.addWidget(self.plot_widget, 75)
         
         # Control Panel
         control_panel = QFrame()
@@ -339,19 +339,15 @@ class MainWindow(QMainWindow):
         self.channel_list = ChannelListWidget(self)
         control_layout.addWidget(self.channel_list)
         
-        # Buttons
+        # Buttons - DOIT ÊTRE AVANT update_display()
         btn_layout = QHBoxLayout()
-        self.module_widgets = {}
-        self.load_config()
-        if hasattr(self, 'config') and self.config.get("devices"):
-            self.update_display()
-            QTimer.singleShot(1500, self.check_devices_online)  # Délai augmenté à 1.5s
+        
         self.scan_btn = QPushButton("Scan Devices")
         self.scan_btn.clicked.connect(self.scan_devices)
         btn_layout.addWidget(self.scan_btn)
         
         self.start_btn = QPushButton("Start")
-        self.start_btn.setEnabled(False)
+        self.start_btn.setEnabled(False)  # Désactivé par défaut
         self.start_btn.clicked.connect(self.start_measurement)
         btn_layout.addWidget(self.start_btn)
         
@@ -361,7 +357,14 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.stop_btn)
         
         control_layout.addLayout(btn_layout)
-        layout.addWidget(control_panel, 25)  # 25% width
+        layout.addWidget(control_panel, 25)
+        
+        # Initialisation APRES création des boutons
+        self.module_widgets = {}
+        self.load_config()
+        if hasattr(self, 'config') and self.config.get("devices"):
+            self.update_display()
+            QTimer.singleShot(1500, self.check_devices_online)
     
     def load_config(self):
         """Load config from file"""
@@ -369,9 +372,10 @@ class MainWindow(QMainWindow):
             try:
                 with open(CONFIG_FILE, 'r') as f:
                     self.config = json.load(f)
+                if hasattr(self, 'start_btn'):  # Vérification de sécurité
                     self.update_display()
             except Exception as e:
-                QMessageBox.warning(self, "Warning", f"Could not load config:\n{str(e)}")
+                print(f"Could not load config: {str(e)}")  # Message plus précis
     
     def check_devices_online(self):
         """Check device connection status"""
@@ -429,7 +433,9 @@ class MainWindow(QMainWindow):
     
     def update_display(self):
         """Update UI based on current config"""
-        print(f"Debug: Config loaded - {self.config}")  # Vérifiez la structure
+        if not hasattr(self, 'start_btn'):  # Protection
+            return
+        
         self.plot_widget.clear()
         self.channel_list.clear()
         self.graph_items = {}
@@ -444,21 +450,19 @@ class MainWindow(QMainWindow):
         # Organize channels by module
         modules = {}
         for device_name, device_cfg in self.config["devices"].items():
-            module_name = device_cfg.get("display_name", device_name)
-            if module_name not in modules:
-                modules[module_name] = {
-                    "device_name": device_name,
-                    "channels": []
-                }
+            module_name = device_cfg["display_name"]
+            channels = device_cfg["channels"]  # Accès direct au dictionnaire
             
-            # Add real channels from config
-            for channel_id, channel_cfg in device_cfg.get("channels", {}).items():
-                modules[module_name]["channels"].append({
-                    "id": channel_id,
-                    "display_name": channel_cfg["display_name"],
-                    "color": channel_cfg["color"],
-                    "visible": channel_cfg.get("visible", True)
-                })
+            for channel_id, channel_cfg in channels.items():  # Utilisez directement les clés
+                self.graph_items[channel_id] = {
+                    "curve": self.plot_widget.plot(
+                        [], 
+                        [],
+                        pen=pg.mkPen(color=channel_cfg["color"], width=2),
+                        name=channel_cfg["display_name"]
+                    ),
+                    "config": channel_cfg
+                }
 
         # Add modules to display
         for i, (module_name, module_data) in enumerate(modules.items()):
@@ -526,6 +530,8 @@ class MainWindow(QMainWindow):
                 }
         
         self.start_btn.setEnabled(True)
+        if hasattr(self, 'start_btn'):  # Vérification supplémentaire
+            self.start_btn.setEnabled(bool(self.config.get("devices")))
 
     def create_channel_widget(self, channel):
         """Helper method to create channel widget"""

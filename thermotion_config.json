@@ -1,13 +1,185 @@
 {
   "devices": {
+    "cDAQ2Mod1": {
+      "channels": {
+        "cDAQ2Mod1/ai0": {
+          "color": "#5cb542",
+          "display_name": "ai0",
+          "visible": true
+        },
+        "cDAQ2Mod1/ai1": {
+          "color": "#a03fe8",
+          "display_name": "ai1",
+          "visible": true
+        },
+        "cDAQ2Mod1/ai2": {
+          "color": "#7486dd",
+          "display_name": "ai2",
+          "visible": true
+        },
+        "cDAQ2Mod1/ai3": {
+          "color": "#da97fa",
+          "display_name": "ai3",
+          "visible": true
+        },
+        "cDAQ2Mod1/ai4": {
+          "color": "#1dbaff",
+          "display_name": "ai4",
+          "visible": true
+        },
+        "cDAQ2Mod1/ai5": {
+          "color": "#0a26f9",
+          "display_name": "ai5",
+          "visible": true
+        },
+        "cDAQ2Mod1/ai6": {
+          "color": "#005082",
+          "display_name": "ai6",
+          "visible": true
+        },
+        "cDAQ2Mod1/ai7": {
+          "color": "#6e579e",
+          "display_name": "ai7",
+          "visible": true
+        }
+      },
+      "display_name": "cDAQ2Mod1"
+    },
+    "cDAQ2Mod2": {
+      "channels": {
+        "cDAQ2Mod2/ai0": {
+          "color": "#a32704",
+          "display_name": "ai0",
+          "visible": true
+        },
+        "cDAQ2Mod2/ai1": {
+          "color": "#34eeb4",
+          "display_name": "ai1",
+          "visible": true
+        },
+        "cDAQ2Mod2/ai2": {
+          "color": "#80179d",
+          "display_name": "ai2",
+          "visible": true
+        },
+        "cDAQ2Mod2/ai3": {
+          "color": "#0fbb0c",
+          "display_name": "ai3",
+          "visible": true
+        },
+        "cDAQ2Mod2/ai4": {
+          "color": "#375239",
+          "display_name": "ai4",
+          "visible": true
+        },
+        "cDAQ2Mod2/ai5": {
+          "color": "#a0a88b",
+          "display_name": "ai5",
+          "visible": true
+        },
+        "cDAQ2Mod2/ai6": {
+          "color": "#4f01e3",
+          "display_name": "ai6",
+          "visible": true
+        },
+        "cDAQ2Mod2/ai7": {
+          "color": "#e96fd9",
+          "display_name": "ai7",
+          "visible": true
+        }
+      },
+      "display_name": "cDAQ2Mod2"
+    },
     "cDAQ2Mod3": {
-      "channels": {},
+      "channels": {
+        "cDAQ2Mod3/ai0": {
+          "color": "#31f3cb",
+          "display_name": "ai0",
+          "visible": true
+        },
+        "cDAQ2Mod3/ai1": {
+          "color": "#c6ad7b",
+          "display_name": "ai1",
+          "visible": true
+        },
+        "cDAQ2Mod3/ai2": {
+          "color": "#e0a32f",
+          "display_name": "ai2",
+          "visible": true
+        },
+        "cDAQ2Mod3/ai3": {
+          "color": "#fbac11",
+          "display_name": "ai3",
+          "visible": true
+        },
+        "cDAQ2Mod3/ai4": {
+          "color": "#8472f0",
+          "display_name": "ai4",
+          "visible": true
+        },
+        "cDAQ2Mod3/ai5": {
+          "color": "#8f9933",
+          "display_name": "ai5",
+          "visible": true
+        },
+        "cDAQ2Mod3/ai6": {
+          "color": "#55a465",
+          "display_name": "ai6",
+          "visible": true
+        },
+        "cDAQ2Mod3/ai7": {
+          "color": "#5ce157",
+          "display_name": "ai7",
+          "visible": true
+        }
+      },
       "display_name": "cDAQ2Mod3"
     },
     "cDAQ2Mod4": {
-      "channels": {},
+      "channels": {
+        "cDAQ2Mod4/ai0": {
+          "color": "#997104",
+          "display_name": "ai0",
+          "visible": true
+        },
+        "cDAQ2Mod4/ai1": {
+          "color": "#0ca5d2",
+          "display_name": "ai1",
+          "visible": true
+        },
+        "cDAQ2Mod4/ai2": {
+          "color": "#9c779f",
+          "display_name": "ai2",
+          "visible": true
+        },
+        "cDAQ2Mod4/ai3": {
+          "color": "#7f0ac0",
+          "display_name": "ai3",
+          "visible": true
+        },
+        "cDAQ2Mod4/ai4": {
+          "color": "#71d294",
+          "display_name": "ai4",
+          "visible": true
+        },
+        "cDAQ2Mod4/ai5": {
+          "color": "#bb0092",
+          "display_name": "ai5",
+          "visible": true
+        },
+        "cDAQ2Mod4/ai6": {
+          "color": "#97eb99",
+          "display_name": "ai6",
+          "visible": true
+        },
+        "cDAQ2Mod4/ai7": {
+          "color": "#e5db9a",
+          "display_name": "ai7",
+          "visible": true
+        }
+      },
       "display_name": "cDAQ2Mod4"
     }
   },
-  "version": 1
+  "version": 2
 }
