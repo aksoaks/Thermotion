@@ -17,13 +17,14 @@ CONFIG_FILE = "thermotion_config.json"
 class ChannelConfigDialog(QDialog):
     def __init__(self, channel_data, parent=None):
         super().__init__(parent)
+        self.channel_data = channel_data
+        self.plot_widget = pg.PlotWidget()
         self.plot_widget.setRange(xRange=[0, 10], yRange=[0, 100], padding=0)
         self.plot_widget.enableAutoRange(axis='y', enable=False)
         self.setWindowTitle("Channel Settings")
         self.setFixedSize(400, 300)
         self.setStyleSheet("font-size: 12px;")
-        
-        self.channel_data = channel_data
+                
         self.init_ui()
     
     def init_ui(self):
