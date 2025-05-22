@@ -227,24 +227,51 @@ class DeviceScannerDialog(QDialog):
     def apply_config(self):
         """Compile and emit final configuration"""
         config = {
-            "version": 1,
+            "version": 2,
             "devices": {}
         }
         
         for group, name_edit, device in self.device_widgets:
-            if group.isChecked():
-                config["devices"][device.name] = {
-                    "display_name": name_edit.text(),
-                    "channels": {}
-                }
-        
+                if group.isChecked():
+                    config["devices"][device.name] = {
+                        "display_name": name_edit.text(),
+                        "channels": self.get_device_channels(device)  # Nouvelle méthode
+                    }
         self.config_updated.emit(config)
         self.accept()
     
+    def get_device_channels(self, device):
+        """Récupère tous les canaux physiques du device"""
+        channels = {}
+        try:
+            for ch in device.ai_physical_chans:
+                channel_id = ch.name
+                channels[channel_id] = {
+                    "display_name": channel_id.split('/')[-1],
+                    "color": "#{:06x}".format(hash(channel_id) % 0xffffff),
+                    "visible": True
+                }
+        except Exception as e:
+            print(f"Error reading channels: {str(e)}")
+        return channels
+
     def retry_detection(self):
-        """Retry device detection"""
-        self.devices = self.detect_devices()
-        self.init_ui()
+        """Relance la détection des appareils"""
+        try:
+            # Nettoyer complètement l'interface avant rechargement
+            for i in reversed(range(self.layout().count())):
+                widget = self.layout().itemAt(i).widget()
+                if widget:
+                    widget.setParent(None)
+            
+            self.devices = self.detect_devices()
+            self.init_ui()  # Reconstruit complètement l'interface
+            
+            if not self.devices:
+                QMessageBox.information(self, "Info", "No devices found after rescan")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Rescan failed:\n{str(e)}")
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -401,6 +428,7 @@ class MainWindow(QMainWindow):
     
     def update_display(self):
         """Update UI based on current config"""
+        print(f"Debug: Config loaded - {self.config}")  # Vérifiez la structure
         self.plot_widget.clear()
         self.channel_list.clear()
         self.graph_items = {}
@@ -415,6 +443,7 @@ class MainWindow(QMainWindow):
         # Organize channels by module
         modules = {}
         for device_name, device_cfg in self.config["devices"].items():  # device_name est défini ici
+            print(f"Processing device: {device_name}")
             module_name = device_cfg.get("display_name", device_name)
             if module_name not in modules:
                 modules[module_name] = {
@@ -423,16 +452,12 @@ class MainWindow(QMainWindow):
                 }
             
             # Add simulated channels
-            for i in range(4):  # Adaptez avec vos canaux réels
-                channel_id = f"{device_name}/ai{i}"
-                color = "#{:06x}".format(hash(channel_id) % 0xffffff)
-                
-                modules[module_name]["channels"].append({
-                    "id": channel_id,
-                    "display_name": f"Ch{i}",
-                    "color": color,
-                    "visible": True
-                })
+            for ch in device_cfg.get("channels", {}).values():  # Utilise les canaux réels du config
+                channel_id = ch["full_id"]  # Doit être dans votre config
+                self.graph_items[channel_id] = {
+                    "curve": self.plot_widget.plot([], [], name=ch["display_name"], ...),
+                    "config": ch
+                }
 
         # Add modules to display
         for module_name, module_data in modules.items():

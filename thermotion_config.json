@@ -1,13 +1,5 @@
 {
   "devices": {
-    "cDAQ2Mod1": {
-      "channels": {},
-      "display_name": "cDAQ2Mod1"
-    },
-    "cDAQ2Mod2": {
-      "channels": {},
-      "display_name": "cDAQ2Mod2"
-    },
     "cDAQ2Mod3": {
       "channels": {},
       "display_name": "cDAQ2Mod3"
