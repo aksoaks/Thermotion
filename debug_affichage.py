@@ -232,11 +232,12 @@ class DeviceScannerDialog(QDialog):
         }
         
         for group, name_edit, device in self.device_widgets:
-                if group.isChecked():
-                    config["devices"][device.name] = {
-                        "display_name": name_edit.text(),
-                        "channels": self.get_device_channels(device)  # Nouvelle méthode
-                    }
+            if group.isChecked():
+                config["devices"][device.name] = {
+                    "display_name": name_edit.text(),
+                    "channels": self.get_device_channels(device)
+                }
+        
         self.config_updated.emit(config)
         self.accept()
     
@@ -442,40 +443,89 @@ class MainWindow(QMainWindow):
 
         # Organize channels by module
         modules = {}
-        for device_name, device_cfg in self.config["devices"].items():  # device_name est défini ici
-            print(f"Processing device: {device_name}")
+        for device_name, device_cfg in self.config["devices"].items():
             module_name = device_cfg.get("display_name", device_name)
             if module_name not in modules:
                 modules[module_name] = {
-                    "device_name": device_name,  # Stockez le vrai nom du device
+                    "device_name": device_name,
                     "channels": []
                 }
             
-            # Add simulated channels
-            for ch in device_cfg.get("channels", {}).values():  # Utilise les canaux réels du config
-                channel_id = ch["full_id"]  # Doit être dans votre config
-                self.graph_items[channel_id] = {
-                    "curve": self.plot_widget.plot([], [], name=ch["display_name"], ...),
-                    "config": ch
-                }
+            # Add real channels from config
+            for channel_id, channel_cfg in device_cfg.get("channels", {}).items():
+                modules[module_name]["channels"].append({
+                    "id": channel_id,
+                    "display_name": channel_cfg["display_name"],
+                    "color": channel_cfg["color"],
+                    "visible": channel_cfg.get("visible", True)
+                })
 
         # Add modules to display
-        for module_name, module_data in modules.items():
-            # [...] (votre code existant pour créer les séparateurs et en-têtes)
+        for i, (module_name, module_data) in enumerate(modules.items()):
+            # Add separator for modules (except first one)
+            if i > 0:
+                separator = QFrame()
+                separator.setFrameShape(QFrame.HLine)
+                separator.setFrameShadow(QFrame.Sunken)
+                separator_item = QListWidgetItem()
+                separator_item.setFlags(separator_item.flags() & ~Qt.ItemIsSelectable)
+                separator_item.setSizeHint(QSize(0, 10))
+                self.channel_list.addItem(separator_item)
+                self.channel_list.setItemWidget(separator_item, separator)
+            
+            # Add module header with visibility control
+            header_widget = QWidget()
+            header_layout = QHBoxLayout(header_widget)
+            
+            # Module visibility checkbox
+            module_cb = QCheckBox()
+            module_cb.setChecked(True)
+            module_cb.stateChanged.connect(
+                lambda state, mn=module_name: self.toggle_module_visibility(mn, state)
+            )
+            header_layout.addWidget(module_cb)
+            
+            # Centered module name
+            name_label = QLabel(module_name)
+            name_label.setAlignment(Qt.AlignCenter)
+            name_label.setStyleSheet("font-weight: bold;")
+            header_layout.addWidget(name_label, 1)  # Stretchable
+            
+            header_item = QListWidgetItem()
+            header_item.setFlags(header_item.flags() & ~Qt.ItemIsSelectable)
+            header_item.setSizeHint(header_widget.sizeHint())
+            self.channel_list.addItem(header_item)
+            self.channel_list.setItemWidget(header_item, header_widget)
+            
+            # Store module reference
+            self.module_widgets[module_name] = {
+                'checkbox': module_cb,
+                'channels': [ch['id'] for ch in module_data["channels"]]
+            }
             
             # Add channels
             for channel in module_data["channels"]:
-                # [...] (votre code existant pour créer la courbe)
+                # Create plot item
+                curve = self.plot_widget.plot(
+                    [0, 1, 2, 3, 4],  # X values (time)
+                    [0, 1, 4, 9, 16], # Y values (simulated data)
+                    pen=pg.mkPen(color=channel["color"], width=2),
+                    name=channel["display_name"]
+                )
                 
                 # Create list item
-                item = QListWidgetItem()
-                widget = QWidget()
-                widget.device_name = module_data["device_name"]  # Utilisez module_data au lieu de device_name
-                
-                # [...] (le reste de votre code pour le widget)
-                
+                item, widget, cb = self.create_channel_widget(channel)
                 self.channel_list.addItem(item)
                 self.channel_list.setItemWidget(item, widget)
+                
+                # Store references
+                self.graph_items[channel["id"]] = {
+                    "curve": curve,
+                    "config": channel,
+                    "checkbox": cb
+                }
+        
+        self.start_btn.setEnabled(True)
 
     def create_channel_widget(self, channel):
         """Helper method to create channel widget"""
