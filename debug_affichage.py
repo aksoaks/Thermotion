@@ -17,6 +17,8 @@ CONFIG_FILE = "thermotion_config.json"
 class ChannelConfigDialog(QDialog):
     def __init__(self, channel_data, parent=None):
         super().__init__(parent)
+        self.plot_widget.setRange(xRange=[0, 10], yRange=[0, 100], padding=0)
+        self.plot_widget.enableAutoRange(axis='y', enable=False)
         self.setWindowTitle("Channel Settings")
         self.setFixedSize(400, 300)
         self.setStyleSheet("font-size: 12px;")
@@ -235,7 +237,14 @@ class DeviceScannerDialog(QDialog):
             if group.isChecked():
                 config["devices"][device.name] = {
                     "display_name": name_edit.text(),
-                    "channels": self.get_device_channels(device)
+                    "channels": {
+                        ch.name: {  # Utilisez directement le nom complet comme clé
+                            "display_name": ch.name.split('/')[-1],
+                            "color": "#{:06x}".format(hash(ch.name) % 0xffffff),
+                            "visible": True
+                        }
+                        for ch in device.ai_physical_chans
+                    }
                 }
         
         self.config_updated.emit(config)
@@ -366,6 +375,10 @@ class MainWindow(QMainWindow):
             self.update_display()
             QTimer.singleShot(1500, self.check_devices_online)
     
+    def update_plot(self):
+        self.plot_widget.setLimits(xMin=0, xMax=10)
+        self.plot_widget.enableAutoRange(axis='x')
+
     def load_config(self):
         """Load config from file"""
         if os.path.exists(CONFIG_FILE):
@@ -381,32 +394,16 @@ class MainWindow(QMainWindow):
         """Check device connection status"""
         try:
             system = nidaqmx.system.System.local()
-            connected_devices = [d.name for d in system.devices if "Mod" in d.name]  # Filtre modules seulement
+            connected_devices = {d.name for d in system.devices}  # Utilisation d'un set pour la performance
             
-            for i in range(self.channel_list.count()):
-                item = self.channel_list.item(i)
-                if not item: continue
-                
-                widget = self.channel_list.itemWidget(item)
-                if not widget or not hasattr(widget, 'device_name'): continue
-                
-                # Vérification plus robuste
-                offline_label = None
-                layout = widget.layout()
-                if layout:
-                    for i in range(layout.count()):
-                        child = layout.itemAt(i).widget()
-                        if isinstance(child, QLabel) and child.text() == "(offline)":
-                            offline_label = child
-                            break
-                
-                if widget.device_name not in connected_devices:
-                    if not offline_label and layout:
-                        offline_label = QLabel("(offline)")
-                        offline_label.setStyleSheet("color: red; font-size: 11px;")
-                        layout.addWidget(offline_label)
-                elif offline_label:
-                    offline_label.deleteLater()
+            for channel_id in self.graph_items:
+                device_name = channel_id.split('/')[0]  # Extrait "cDAQ2Mod1" de "cDAQ2Mod1/ai0"
+                if device_name not in connected_devices:
+                    # Marquer comme offline
+                    self.graph_items[channel_id]["offline"] = True
+                    # Mettre à jour le style si nécessaire
+        except Exception as e:
+            print(f"Device check error: {str(e)}")
                     
         except Exception as e:
             print(f"Device check error: {str(e)}")
