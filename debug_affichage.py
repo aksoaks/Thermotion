@@ -313,7 +313,11 @@ class MainWindow(QMainWindow):
         
         # Buttons
         btn_layout = QHBoxLayout()
-        
+        self.module_widgets = {}
+        self.load_config()
+        if hasattr(self, 'config') and self.config.get("devices"):
+            self.update_display()
+            QTimer.singleShot(1500, self.check_devices_online)  # Délai augmenté à 1.5s
         self.scan_btn = QPushButton("Scan Devices")
         self.scan_btn.clicked.connect(self.scan_devices)
         btn_layout.addWidget(self.scan_btn)
@@ -345,31 +349,33 @@ class MainWindow(QMainWindow):
         """Check device connection status"""
         try:
             system = nidaqmx.system.System.local()
-            connected_devices = [d.name for d in system.devices if "Mod" in d.name]
+            connected_devices = [d.name for d in system.devices if "Mod" in d.name]  # Filtre modules seulement
             
             for i in range(self.channel_list.count()):
                 item = self.channel_list.item(i)
-                widget = self.channel_list.itemWidget(item)
+                if not item: continue
                 
-                if widget and hasattr(widget, 'device_name'):
-                    is_online = widget.device_name in connected_devices
-                    
-                    # Trouver ou créer le label offline
-                    offline_label = None
-                    for j in range(widget.layout().count()):
-                        child = widget.layout().itemAt(j).widget()
+                widget = self.channel_list.itemWidget(item)
+                if not widget or not hasattr(widget, 'device_name'): continue
+                
+                # Vérification plus robuste
+                offline_label = None
+                layout = widget.layout()
+                if layout:
+                    for i in range(layout.count()):
+                        child = layout.itemAt(i).widget()
                         if isinstance(child, QLabel) and child.text() == "(offline)":
                             offline_label = child
                             break
-                    
-                    # Mise à jour du statut
-                    if not is_online and not offline_label:
+                
+                if widget.device_name not in connected_devices:
+                    if not offline_label and layout:
                         offline_label = QLabel("(offline)")
                         offline_label.setStyleSheet("color: red; font-size: 11px;")
-                        widget.layout().addWidget(offline_label)
-                    elif is_online and offline_label:
-                        offline_label.deleteLater()
-                        
+                        layout.addWidget(offline_label)
+                elif offline_label:
+                    offline_label.deleteLater()
+                    
         except Exception as e:
             print(f"Device check error: {str(e)}")
 
