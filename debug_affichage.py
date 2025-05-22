@@ -342,28 +342,33 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Warning", f"Could not load config:\n{str(e)}")
     
     def check_devices_online(self):
-        """Check device connection status and update UI"""
+        """Check device connection status"""
         try:
             system = nidaqmx.system.System.local()
-            connected_devices = [d.name for d in system.devices]
+            connected_devices = [d.name for d in system.devices if "Mod" in d.name]
             
             for i in range(self.channel_list.count()):
                 item = self.channel_list.item(i)
                 widget = self.channel_list.itemWidget(item)
                 
                 if widget and hasattr(widget, 'device_name'):
-                    device_name = widget.device_name
-                    offline_label = getattr(widget, 'offline_label', None)
+                    is_online = widget.device_name in connected_devices
                     
-                    if device_name not in connected_devices:
-                        if not offline_label:
-                            offline_label = QLabel("(offline)")
-                            offline_label.setStyleSheet("color: red; font-size: 11px;")
-                            widget.layout().addWidget(offline_label)
-                            widget.offline_label = offline_label
-                    elif offline_label:
+                    # Trouver ou créer le label offline
+                    offline_label = None
+                    for j in range(widget.layout().count()):
+                        child = widget.layout().itemAt(j).widget()
+                        if isinstance(child, QLabel) and child.text() == "(offline)":
+                            offline_label = child
+                            break
+                    
+                    # Mise à jour du statut
+                    if not is_online and not offline_label:
+                        offline_label = QLabel("(offline)")
+                        offline_label.setStyleSheet("color: red; font-size: 11px;")
+                        widget.layout().addWidget(offline_label)
+                    elif is_online and offline_label:
                         offline_label.deleteLater()
-                        del widget.offline_label
                         
         except Exception as e:
             print(f"Device check error: {str(e)}")
@@ -390,34 +395,29 @@ class MainWindow(QMainWindow):
     
     def update_display(self):
         """Update UI based on current config"""
-        widget = QWidget()
-        widget.device_name = device_name  # Important pour la détection offline
         self.plot_widget.clear()
         self.channel_list.clear()
         self.graph_items = {}
         
-        # Initialize module_widgets if not exists (safety check)
         if not hasattr(self, 'module_widgets'):
             self.module_widgets = {}
-        else:
-            self.module_widgets.clear()
-        
+
         if not self.config.get("devices"):
             self.start_btn.setEnabled(False)
             return
-        
+
         # Organize channels by module
         modules = {}
-        for device_name, device_cfg in self.config["devices"].items():
+        for device_name, device_cfg in self.config["devices"].items():  # device_name est défini ici
             module_name = device_cfg.get("display_name", device_name)
             if module_name not in modules:
                 modules[module_name] = {
-                    "device_name": device_name,
+                    "device_name": device_name,  # Stockez le vrai nom du device
                     "channels": []
                 }
             
-            # Add simulated channels (replace with real channels)
-            for i in range(4):  # Example for 4 channels per device
+            # Add simulated channels
+            for i in range(4):  # Adaptez avec vos canaux réels
                 channel_id = f"{device_name}/ai{i}"
                 color = "#{:06x}".format(hash(channel_id) % 0xffffff)
                 
@@ -429,124 +429,22 @@ class MainWindow(QMainWindow):
                 })
 
         # Add modules to display
-        for i, (module_name, module_data) in enumerate(modules.items()):
-            # Add separator line between modules (except first one)
-            if i > 0:
-                separator = QFrame()
-                separator.setFrameShape(QFrame.HLine)
-                separator.setFrameShadow(QFrame.Sunken)
-                separator.setStyleSheet("color: #888; margin: 5px 0;")
-                
-                separator_item = QListWidgetItem()
-                separator_item.setFlags(separator_item.flags() & ~Qt.ItemIsSelectable)
-                separator_item.setSizeHint(QSize(0, 1))  # Thin separator line
-                self.channel_list.addItem(separator_item)
-                self.channel_list.setItemWidget(separator_item, separator)
-
-            # Module header with visibility control
-            header_widget = QWidget()
-            header_layout = QHBoxLayout(header_widget)
-            header_layout.setContentsMargins(5, 5, 5, 5)
-
-            # Module visibility checkbox
-            module_cb = QCheckBox()
-            module_cb.setChecked(True)
-            module_cb.stateChanged.connect(
-                lambda state, mn=module_name: self.toggle_module_visibility(mn, state)
-            )
-            header_layout.addWidget(module_cb)
-
-            # Centered module name
-            name_label = QLabel(module_name)
-            name_label.setAlignment(Qt.AlignCenter)
-            name_label.setStyleSheet("""
-                font-weight: bold;
-                font-size: 12px;
-                padding: 2px;
-            """)
-            header_layout.addWidget(name_label, 1)  # Stretchable
-
-            header_item = QListWidgetItem()
-            header_item.setFlags(header_item.flags() & ~Qt.ItemIsSelectable)
-            header_item.setSizeHint(header_widget.sizeHint())
-            self.channel_list.addItem(header_item)
-            self.channel_list.setItemWidget(header_item, header_widget)
-
-            # Store module reference
-            self.module_widgets[module_name] = {
-                'checkbox': module_cb,
-                'channels': [ch['id'] for ch in module_data["channels"]]
-            }
-
+        for module_name, module_data in modules.items():
+            # [...] (votre code existant pour créer les séparateurs et en-têtes)
+            
             # Add channels
             for channel in module_data["channels"]:
-                # Create plot item
-                curve = self.plot_widget.plot(
-                    [0, 1, 2, 3, 4],  # X values (time)
-                    [0, 1, 4, 9, 16], # Y values (simulated data)
-                    name=channel["display_name"],
-                    pen=pg.mkPen(color=channel["color"], width=2)
-                )
-
-                # Create channel list item
-                item = QListWidgetItem()
-                item.setData(Qt.UserRole, channel["id"])
+                # [...] (votre code existant pour créer la courbe)
                 
+                # Create list item
+                item = QListWidgetItem()
                 widget = QWidget()
-                layout = QHBoxLayout(widget)
-                layout.setContentsMargins(2, 2, 2, 2)
-
-                # Visibility checkbox
-                cb = QCheckBox()
-                cb.setChecked(True)
-                cb.stateChanged.connect(
-                    lambda state, cid=channel["id"]: self.toggle_channel_visibility(cid, state)
-                )
-                layout.addWidget(cb)
-
-                # Color indicator
-                color_label = QLabel()
-                color_label.setFixedSize(16, 16)
-                color_label.setStyleSheet(f"""
-                    background-color: {channel['color']};
-                    border: 1px solid #000;
-                    border-radius: 3px;
-                """)
-                layout.addWidget(color_label)
-
-                # Channel name
-                name_label = QLabel(channel["display_name"])
-                name_label.setStyleSheet("font-size: 12px;")
-                layout.addWidget(name_label)
-                layout.addStretch()
-
-                # Edit button
-                edit_btn = QPushButton("✏️")  # U+270F
-                edit_btn.setStyleSheet("""
-                    font-size: 14px;
-                    padding: 0px;
-                    margin: 0px;
-                    border: none;
-                    background: transparent;
-                """)
-                edit_btn.setFixedSize(24, 24)
-                edit_btn.clicked.connect(
-                    partial(self.edit_channel, channel["id"])
-                )
-                layout.addWidget(edit_btn)
-
-                item.setSizeHint(widget.sizeHint())
+                widget.device_name = module_data["device_name"]  # Utilisez module_data au lieu de device_name
+                
+                # [...] (le reste de votre code pour le widget)
+                
                 self.channel_list.addItem(item)
                 self.channel_list.setItemWidget(item, widget)
-
-                # Store references
-                self.graph_items[channel["id"]] = {
-                    "curve": curve,
-                    "config": channel,
-                    "checkbox": cb
-                }
-
-        self.start_btn.setEnabled(True)
 
     def create_channel_widget(self, channel):
         """Helper method to create channel widget"""
