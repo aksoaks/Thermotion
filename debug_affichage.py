@@ -229,6 +229,12 @@ class DeviceScannerDialog(QDialog):
     
     def apply_config(self):
         """Compile and emit final configuration"""
+        self.save_config()
+        self.config = self.load_config() 
+        self.config_updated.emit() 
+        self.update_active_channels()
+        self.update_channel_list()  # Met aussi à jour la liste de gauche
+        print("Configuration applied and UI updated")
         config = {
             "version": 2,
             "devices": {}
@@ -285,6 +291,7 @@ class DeviceScannerDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Rescan failed:\n{str(e)}")
 
 class MainWindow(QMainWindow):
+    config_updated = pyqtSignal()
     def __init__(self):
         super().__init__()
         icon_path = os.path.join(os.path.dirname(__file__), "icon.jpg")
@@ -318,6 +325,7 @@ class MainWindow(QMainWindow):
         self.check_timer = QTimer()
         self.check_timer.timeout.connect(self.check_devices_online)
         self.check_timer.start(30000)  # 30 secondes
+        self.config_updated.connect(self.update_ui)
 
     def init_ui(self):
         central = QWidget()
@@ -375,6 +383,9 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'config') and self.config.get("devices"):
             self.update_display()
             QTimer.singleShot(1500, self.check_devices_online)
+
+        self.update_active_channels()
+        self.update_channel_list()
     
     def update_plot(self):
         self.plot_widget.setLimits(xMin=0, xMax=10)
@@ -412,8 +423,8 @@ class MainWindow(QMainWindow):
     def save_config(self):
         """Save config to file"""
         try:
-            with open(CONFIG_FILE, 'w') as f:
-                json.dump(self.config, f, indent=2)
+            with open(self.config_file, 'w') as f:
+                json.dump(self.config, f, indent=4)
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Could not save config:\n{str(e)}")
     
