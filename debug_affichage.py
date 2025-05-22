@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                               QPushButton, QLabel, QDialog, QLineEdit, QColorDialog, QListWidget,
                               QListWidgetItem, QCheckBox, QScrollArea, QGroupBox, QMessageBox,
                               QFrame, QSizePolicy)
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtGui import QColor, QIcon, QFont, QIcon, QPixmap
 import pyqtgraph as pg
 import nidaqmx.system
@@ -249,7 +249,7 @@ class DeviceScannerDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        icon_path = "c:/user/SF66405/Code/Python/cDAQ/icon.jpg"
+        icon_path = os.path.join(os.path.dirname(__file__), "icon.jpg")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         else:
@@ -274,9 +274,12 @@ class MainWindow(QMainWindow):
         self.graph_items = {}
         self.init_ui()
         self.load_config()
-        if self.config.get("devices"):
+        if hasattr(self, 'config') and self.config.get("devices"):
             self.update_display()
-            self.check_devices_online()  # Ajoutez cette ligne
+            QTimer.singleShot(1000, self.check_devices_online)  # Délai pour laisser l'UI s'initialiser
+        self.check_timer = QTimer()
+        self.check_timer.timeout.connect(self.check_devices_online)
+        self.check_timer.start(30000)  # 30 secondes
 
     def init_ui(self):
         central = QWidget()
@@ -339,26 +342,29 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Warning", f"Could not load config:\n{str(e)}")
     
     def check_devices_online(self):
-        """Check if configured devices are online"""
+        """Check device connection status and update UI"""
         try:
             system = nidaqmx.system.System.local()
-            online_devices = [d.name for d in system.devices]
+            connected_devices = [d.name for d in system.devices]
             
-            for module_name in self.module_widgets:
-                device_name = next((k for k,v in self.config["devices"].items() 
-                                if v["display_name"] == module_name), None)
-                if device_name and device_name not in online_devices:
-                    # Add offline indicator
-                    for i in range(self.channel_list.count()):
-                        item = self.channel_list.item(i)
-                        widget = self.channel_list.itemWidget(item)
-                        if widget and module_name in widget.text():
-                            # Add offline label
+            for i in range(self.channel_list.count()):
+                item = self.channel_list.item(i)
+                widget = self.channel_list.itemWidget(item)
+                
+                if widget and hasattr(widget, 'device_name'):
+                    device_name = widget.device_name
+                    offline_label = getattr(widget, 'offline_label', None)
+                    
+                    if device_name not in connected_devices:
+                        if not offline_label:
                             offline_label = QLabel("(offline)")
-                            offline_label.setStyleSheet("color: red;")
-                            layout = widget.layout()
-                            if layout:
-                                layout.addWidget(offline_label)
+                            offline_label.setStyleSheet("color: red; font-size: 11px;")
+                            widget.layout().addWidget(offline_label)
+                            widget.offline_label = offline_label
+                    elif offline_label:
+                        offline_label.deleteLater()
+                        del widget.offline_label
+                        
         except Exception as e:
             print(f"Device check error: {str(e)}")
 
@@ -384,6 +390,8 @@ class MainWindow(QMainWindow):
     
     def update_display(self):
         """Update UI based on current config"""
+        widget = QWidget()
+        widget.device_name = device_name  # Important pour la détection offline
         self.plot_widget.clear()
         self.channel_list.clear()
         self.graph_items = {}
@@ -513,9 +521,14 @@ class MainWindow(QMainWindow):
                 layout.addStretch()
 
                 # Edit button
-                edit_btn = QPushButton("✏️")  # Unicode pencil character
-                edit_btn.setStyleSheet("font-size: 14px; padding: 0px;")
-                edit_btn.setFixedSize(24, 24)
+                edit_btn = QPushButton("✏️")  # U+270F
+                edit_btn.setStyleSheet("""
+                    font-size: 14px;
+                    padding: 0px;
+                    margin: 0px;
+                    border: none;
+                    background: transparent;
+                """)
                 edit_btn.setFixedSize(24, 24)
                 edit_btn.clicked.connect(
                     partial(self.edit_channel, channel["id"])
