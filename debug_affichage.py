@@ -228,35 +228,38 @@ class DeviceScannerDialog(QDialog):
             print(f"Updated config for {channel_id}: {dialog.get_config()}")
     
     def apply_config(self):
-        """Compile and emit final configuration"""
+        """Sauvegarde la config et met à jour l'interface"""
+        # 1. Sauvegarde la configuration
         self.save_config()
-        self.config = self.load_config() 
-        self.config_updated.emit() 
-        self.update_active_channels()
-        self.update_channel_list()  # Met aussi à jour la liste de gauche
-        print("Configuration applied and UI updated")
-        config = {
+        self.config = self.load_config()
+        
+        # 3. Met à jour les vues
+        self.update_channel_list()
+        self.update_active_channels()  # Maintenant sécurisé
+        
+        # 4. Prépare et émet la config
+        config_to_emit = {
             "version": 2,
-            "devices": {}
+            "devices": {
+                dev.name: {
+                    "channels": {ch.name: {"active": True} for ch in dev.ai_physical_chans}
+                } for dev in self.devices
+            }
         }
-        
-        for group, name_edit, device in self.device_widgets:
-            if group.isChecked():
-                config["devices"][device.name] = {
-                    "display_name": name_edit.text(),
-                    "channels": {
-                        ch.name: {  # Utilisez directement le nom complet comme clé
-                            "display_name": ch.name.split('/')[-1],
-                            "color": "#{:06x}".format(hash(ch.name) % 0xffffff),
-                            "visible": True
-                        }
-                        for ch in device.ai_physical_chans
-                    }
-                }
-        
-        self.config_updated.emit(config)
-        self.accept()
+        self.config_updated.emit(config_to_emit)
     
+    def update_active_channels(self):
+        """Met à jour la QListWidget des canaux actifs"""
+        self.active_channels_list.clear()
+        
+        # Exemple de structure attendue dans self.config:
+        # {"modules": [{"name": "Mod1", "channels": [{"name": "ch1", "active": True}]}]}
+        for module in self.config.get('modules', []):
+            for channel in module.get('channels', []):
+                if channel.get('active', False):
+                    item = QListWidgetItem(f"{module['name']}/{channel['name']}")
+                    self.active_channels_list.addItem(item)
+
     def get_device_channels(self, device):
         """Récupère tous les canaux physiques du device"""
         channels = {}
@@ -291,7 +294,8 @@ class DeviceScannerDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Rescan failed:\n{str(e)}")
 
 class MainWindow(QMainWindow):
-    config_updated = pyqtSignal()
+    config_updated = Signal(dict)  # Déclaration du signal avec PySide6
+
     def __init__(self):
         super().__init__()
         icon_path = os.path.join(os.path.dirname(__file__), "icon.jpg")
@@ -325,7 +329,27 @@ class MainWindow(QMainWindow):
         self.check_timer = QTimer()
         self.check_timer.timeout.connect(self.check_devices_online)
         self.check_timer.start(30000)  # 30 secondes
-        self.config_updated.connect(self.update_ui)
+        self.config_updated.connect(self.handle_config_update)
+
+    def update_active_channels(self):
+        """Met à jour la liste des canaux actifs à partir de la configuration"""
+        if not hasattr(self, 'active_channels_list'):
+            return  # Si le widget n'existe pas encore
+        
+        self.active_channels_list.clear()
+        
+        # Structure attendue dans config:
+        # {"modules": [{"name": "mod1", "channels": [{"name": "ch1", "active": True}]}]}
+        for module in self.config.get('modules', []):
+            for channel in module.get('channels', []):
+                if channel.get('active', False):
+                    item_text = f"{module['name']}/{channel['name']}"
+                    self.active_channels_list.addItem(item_text)
+
+    def handle_config_update(self, config):
+        """Gère les mises à jour de configuration"""
+        print("Configuration reçue:", config)
+        # Traitement de la nouvelle config si besoin
 
     def init_ui(self):
         central = QWidget()
@@ -354,11 +378,14 @@ class MainWindow(QMainWindow):
         control_layout.addWidget(title)
         
         # Channel List
-        self.channel_list = ChannelListWidget(self)
-        control_layout.addWidget(self.channel_list)
+        self.active_channels_list = QListWidget()
+        self.active_channels_list.setMaximumWidth(200)
         
         # Buttons - DOIT ÊTRE AVANT update_display()
         btn_layout = QHBoxLayout()
+
+        # Appel initial pour peupler la liste
+        self.update_active_channels()  # Maintenant cette méthode existe
         
         self.scan_btn = QPushButton("Scan Devices")
         self.scan_btn.clicked.connect(self.scan_devices)
