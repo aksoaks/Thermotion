@@ -357,6 +357,10 @@ class MainWindow(QMainWindow):
         
         layout = QHBoxLayout(central)
         layout.setContentsMargins(5, 5, 5, 5)
+
+        # Init channel List
+        self.active_channels_list = QListWidget()
+        self.active_channels_list.setMaximumWidth(200)
         
         # Graph Area
         self.plot_widget = pg.PlotWidget()
@@ -376,11 +380,7 @@ class MainWindow(QMainWindow):
         title = QLabel("Active Channels")
         title.setStyleSheet("font-weight: bold; font-size: 14px;")
         control_layout.addWidget(title)
-        
-        # Channel List
-        self.active_channels_list = QListWidget()
-        self.active_channels_list.setMaximumWidth(200)
-        
+               
         # Buttons - DOIT ÊTRE AVANT update_display()
         btn_layout = QHBoxLayout()
 
@@ -469,11 +469,12 @@ class MainWindow(QMainWindow):
     
     def update_display(self):
         """Update UI based on current config"""
-        if not hasattr(self, 'start_btn'):  # Protection
+        if not hasattr(self, 'channel_list'):
+            print("Warning: channel_list not initialized yet")
             return
-        
-        self.plot_widget.clear()
         self.channel_list.clear()
+
+        self.plot_widget.clear()
         self.graph_items = {}
         
         if not hasattr(self, 'module_widgets'):
