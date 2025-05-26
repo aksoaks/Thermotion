@@ -1,12 +1,15 @@
-from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                              QListWidget, QCheckBox, QLabel, QPushButton,
-                              QGroupBox, QFormLayout, QScrollArea, QFrame)
+from PySide6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QListWidget, QListWidgetItem,
+    QCheckBox, QGroupBox, QFormLayout, QScrollArea,
+    QFrame, QLineEdit, QMessageBox, QSizePolicy,
+    QDialog, QColorDialog, QApplication
+)
 from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtGui import QColor, QIcon, QFont, QPixmap
 import pyqtgraph as pg
 import nidaqmx.system
 from nidaqmx.errors import DaqError
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMessageBox
 
 class MainWindow(QMainWindow):
     def __init__(self):
