@@ -76,6 +76,7 @@ class DeviceScannerDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.channel_custom_data = {}
         self.setWindowTitle("Device Configuration")
         self.setMinimumSize(800, 600)
         self.setStyleSheet("""
@@ -190,17 +191,19 @@ class DeviceScannerDialog(QDialog):
         self.setLayout(layout)
 
     def edit_channel(self, device_name, channel_name):
-        """Edit individual channel settings"""
         channel_id = f"{device_name}/{channel_name}"
-        channel_data = {
+        default_data = {
             "display_name": channel_name,
             "color": "#{:06x}".format(hash(channel_id) % 0xffffff),
             "visible": True
         }
 
-        dialog = ChannelConfigDialog(channel_data, self)
+        # Utilise les données précédentes si dispo
+        data = self.channel_custom_data.get(channel_id, default_data)
+        dialog = ChannelConfigDialog(data, self)
         if dialog.exec() == QDialog.Accepted:
-            print(f"Updated config for {channel_id}: {dialog.get_config()}")
+            self.channel_custom_data[channel_id] = dialog.get_config()
+
 
     def apply_config(self):
         """Compile and emit final configuration"""
@@ -211,10 +214,26 @@ class DeviceScannerDialog(QDialog):
 
         for group, name_edit, device in self.device_widgets:
             if group.isChecked():
-                config["devices"][device.name] = {
+                device_entry = {
                     "display_name": name_edit.text(),
                     "channels": {}
                 }
+
+                try:
+                    channels = [c.name.split('/')[-1] for c in device.ai_physical_chans]
+                    for ch in sorted(channels):
+                        channel_id = f"{device.name}/{ch}"
+                        ch_data = self.channel_custom_data.get(channel_id, {
+                            "display_name": ch,
+                            "color": "#{:06x}".format(hash(channel_id) % 0xffffff),
+                            "visible": True
+                        })
+                        device_entry["channels"][channel_id] = ch_data
+
+                except Exception as e:
+                    QMessageBox.warning(self, "Warning", f"Error collecting channels:\n{str(e)}")
+
+                config["devices"][device.name] = device_entry
 
         self.config_updated.emit(config)
         self.accept()

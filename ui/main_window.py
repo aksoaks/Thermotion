@@ -1,36 +1,26 @@
 import os
 import sys
+import json
+from functools import partial
 
 # Ajouter la racine du projet au PYTHONPATH si nécessaire
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from PySide6.QtWidgets import *
-from PySide6.QtCore import Qt, QSize, Signal
-from PySide6.QtGui import QIcon
-import pyqtgraph as pg
-from functools import partial
-
-from ui.dialogs import ChannelConfigDialog, DeviceScannerDialog
-from ui.widgets import ChannelListWidget
-from utils.style import MAIN_WINDOW_STYLE, CONTROL_PANEL_STYLE
-from core.config_manager import load_config, save_config
-from core.device_manager import get_online_devices
-
-import sys
-import json
-import os
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QPushButton, QLabel, QDialog, QLineEdit, QColorDialog, QListWidget,
                               QListWidgetItem, QCheckBox, QScrollArea, QGroupBox, QMessageBox,
                               QFrame, QSizePolicy)
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QColor, QIcon, QFont, QIcon, QPixmap
+from PySide6.QtGui import QColor, QIcon, QFont, QPixmap
 import pyqtgraph as pg
 import nidaqmx.system
 from nidaqmx.errors import DaqError
-from functools import partial
+
+from ui.dialogs import ChannelConfigDialog, DeviceScannerDialog
+from ui.widgets import ChannelListWidget
+from utils.style import MAIN_WINDOW_STYLE, CONTROL
 
 CONFIG_FILE = "config.json"
 
@@ -198,15 +188,12 @@ class MainWindow(QMainWindow):
                 }
 
             # Add simulated channels (replace with real channels)
-            for i in range(4):  # Example for 4 channels per device
-                channel_id = f"{device_name}/ai{i}"
-                color = "#{:06x}".format(hash(channel_id) % 0xffffff)
-
+            for channel_id, channel_data in device_cfg.get("channels", {}).items():
                 modules[module_name]["channels"].append({
                     "id": channel_id,
-                    "display_name": f"Ch{i}",
-                    "color": color,
-                    "visible": True
+                    "display_name": channel_data["display_name"],
+                    "color": channel_data["color"],
+                    "visible": channel_data["visible"]
                 })
 
         # Add modules to display
