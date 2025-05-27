@@ -1,3 +1,23 @@
+import os
+import sys
+
+# Ajouter la racine du projet au PYTHONPATH si nécessaire
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from PySide6.QtWidgets import *
+from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtGui import QIcon
+import pyqtgraph as pg
+from functools import partial
+
+from ui.dialogs import ChannelConfigDialog, DeviceScannerDialog
+from ui.widgets import ChannelListWidget
+from utils.style import MAIN_WINDOW_STYLE, CONTROL_PANEL_STYLE
+from core.config_manager import load_config, save_config
+from core.device_manager import get_online_devices
+
 import sys
 import json
 import os
@@ -6,14 +26,13 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                               QListWidgetItem, QCheckBox, QScrollArea, QGroupBox, QMessageBox,
                               QFrame, QSizePolicy)
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QColor, QIcon, QFont
 from PySide6.QtGui import QColor, QIcon, QFont, QIcon, QPixmap
 import pyqtgraph as pg
 import nidaqmx.system
 from nidaqmx.errors import DaqError
 from functools import partial
-from utils.style import MAIN_WINDOW_STYLE, CONTROL_PANEL_STYLE
 
+CONFIG_FILE = "config.json"
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -25,7 +44,18 @@ class MainWindow(QMainWindow):
             print(f"Icon file not found at {icon_path}")
         self.setWindowTitle("Thermotion - Debug Interface")
         self.setGeometry(100, 100, 1200, 800)
-        self.setStyleSheet(MAIN_WINDOW_STYLE)
+        self.setStyleSheet("""
+            QMainWindow {
+                font-size: 12px;
+            }
+            QPushButton {
+                font-size: 12px;
+                min-height: 25px;
+            }
+            QLabel {
+                font-size: 12px;
+            }
+        """)
 
         self.config = {}
         self.module_widgets = {}  # Initialisation du dictionnaire
@@ -56,12 +86,11 @@ class MainWindow(QMainWindow):
         control_panel = QFrame()
         control_panel.setFrameShape(QFrame.StyledPanel)
         control_panel.setFixedWidth(300)
-        control_panel.setStyleSheet(CONTROL_PANEL_STYLE)  # <-- ici
         control_layout = QVBoxLayout(control_panel)
 
         # Title
         title = QLabel("Active Channels")
-        title.setObjectName("titleLabel")  # Cela permet au style de s’appliquer
+        title.setStyleSheet("font-weight: bold; font-size: 14px;")
         control_layout.addWidget(title)
 
         # Channel List
