@@ -20,14 +20,14 @@ from nidaqmx.errors import DaqError
 
 from ui.dialogs import ChannelConfigDialog, DeviceScannerDialog
 from ui.widgets import ChannelListWidget
-from utils.style import MAIN_WINDOW_STYLE, CONTROL
+from utils.style import MAIN_WINDOW_STYLE
 
 CONFIG_FILE = "config.json"
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        icon_path = "c:/user/SF66405/Code/Python/cDAQ/icon.jpg"
+        icon_path = "c:/user/SF66405/Code/Python/cDAQ/icon.ico"
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         else:
@@ -117,6 +117,14 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.warning(self, "Warning", f"Could not load config:\n{str(e)}")
 
+    def toggle_channel_visibility(self, channel_id, state):
+        """Afficher ou masquer une courbe en fonction de la checkbox"""
+        if channel_id in self.graph_items:
+            visible = bool(state)
+            self.graph_items[channel_id]["curve"].setVisible(visible)
+            self.graph_items[channel_id]["config"]["visible"] = visible
+            self.save_config()
+
     def check_devices_online(self):
         """Check if configured devices are online"""
         try:
@@ -131,13 +139,16 @@ class MainWindow(QMainWindow):
                     for i in range(self.channel_list.count()):
                         item = self.channel_list.item(i)
                         widget = self.channel_list.itemWidget(item)
-                        if widget and module_name in widget.text():
-                            # Add offline label
-                            offline_label = QLabel("(offline)")
-                            offline_label.setStyleSheet("color: red;")
-                            layout = widget.layout()
-                            if layout:
-                                layout.addWidget(offline_label)
+                        if widget:
+                            for child in widget.findChildren(QLabel):
+                                if module_name in child.text():
+                                    # ✅ Ajoute ton label (offline) ici
+                                    offline_label = QLabel("(offline)")
+                                    offline_label.setStyleSheet("color: red;")
+                                    layout = widget.layout()
+                                    if layout:
+                                        layout.addWidget(offline_label)
+                                    break
         except Exception as e:
             print(f"Device check error: {str(e)}")
 
@@ -151,7 +162,7 @@ class MainWindow(QMainWindow):
 
     def scan_devices(self):
         """Open device scanner dialog"""
-        dialog = DeviceScannerDialog(self)
+        dialog = DeviceScannerDialog(self, existing_config=self.config)
         dialog.config_updated.connect(self.update_config)
         dialog.exec()
 
@@ -253,7 +264,7 @@ class MainWindow(QMainWindow):
                     [0, 1, 2, 3, 4],  # X values (time)
                     [0, 1, 4, 9, 16], # Y values (simulated data)
                     name=channel["display_name"],
-                    pen=pg.mkPen(color=channel["color"], width=2)
+                    pen=pg.mkPen(color=channel["color"].strip(), width=2)
                 )
 
                 # Create channel list item
