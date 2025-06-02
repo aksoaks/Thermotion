@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.addLegend()
         self.plot_widget.showGrid(x=True, y=True)
-        self.plot_widget.setLabel('left', 'Voltage', 'V')
+        self.plot_widget.setLabel('left', 'Temperature', 'degC')
         self.plot_widget.setLabel('bottom', 'Time', 's')
         layout.addWidget(self.plot_widget, 75)  # 75% width
 

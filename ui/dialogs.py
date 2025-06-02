@@ -186,8 +186,8 @@ class DeviceScannerDialog(QDialog):
         layout.addWidget(scroll)
 
         toggle_layout = QHBoxLayout()
-        select_all_btn = QPushButton("Tout cocher")
-        unselect_all_btn = QPushButton("Tout décocher")
+        select_all_btn = QPushButton("Select All")
+        unselect_all_btn = QPushButton("Disable All")
         select_all_btn.clicked.connect(lambda: self.set_all_visibility(True))
         unselect_all_btn.clicked.connect(lambda: self.set_all_visibility(False))
         toggle_layout.addWidget(select_all_btn)
