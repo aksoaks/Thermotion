@@ -175,6 +175,7 @@ class MainWindow(QMainWindow):
 
     def update_display(self):
         """Update UI based on current config"""
+        
         self.plot_widget.clear()
         self.channel_list.clear()
         self.graph_items = {}
@@ -192,15 +193,19 @@ class MainWindow(QMainWindow):
         # Organize channels by module
         modules = {}
         for device_name, device_cfg in self.config["devices"].items():
-            module_name = device_cfg.get("display_name", device_name)
-            if module_name not in modules:
-                modules[module_name] = {
-                    "device_name": device_name,
-                    "channels": []
-                }
+           if not device_cfg.get("enabled", True):
+                continue  # ❌ Ignorer module désactivé
+        module_name = device_cfg.get("display_name", device_name)
+        if module_name not in modules:
+            modules[module_name] = {
+                "device_name": device_name,
+                "channels": []
+            }
 
             # Add simulated channels (replace with real channels)
             for channel_id, channel_data in device_cfg.get("channels", {}).items():
+                if not channel_data.get("enabled", True):
+                    continue  # ❌ Ignorer canal désactivé
                 modules[module_name]["channels"].append({
                     "id": channel_id,
                     "display_name": channel_data["display_name"],
@@ -302,9 +307,10 @@ class MainWindow(QMainWindow):
 
                 # Edit button
                 edit_btn = QPushButton()
-                edit_btn.setIcon(QIcon.fromTheme("document-edit"))
-                edit_btn.setText("🖊")
-                edit_btn.setStyleSheet("color: white; background-color: transparent; border: none; font-size: 14px; padding: 0px;")
+                edit_icon_path = os.path.join(os.path.dirname(__file__), "../resources/edit_white.png")
+                edit_btn.setIcon(QIcon(edit_icon_path))
+                edit_btn.setIconSize(QSize(16, 16))
+                edit_btn.setStyleSheet("background-color: transparent; border: none;")
                 edit_btn.setFixedSize(24, 24)
                 edit_btn.setFixedSize(24, 24)
                 edit_btn.clicked.connect(
@@ -394,14 +400,15 @@ class MainWindow(QMainWindow):
         dialog = ChannelConfigDialog(self.graph_items[channel_id]["config"], self)
         if dialog.exec() == QDialog.Accepted:
             new_config = dialog.get_config()
-            self.graph_items[channel_id]["config"].update(new_config)
-            self.graph_items[channel_id]["checkbox"].setChecked(new_config["visible"])
-            self.graph_items[channel_id]["curve"].setData(
-                name=new_config["display_name"],
-                pen=pg.mkPen(color=new_config["color"], width=2)
-            )
-            self.save_config()
-            self.update_display()
+
+            # 🛠️ Met à jour directement la configuration dans self.config
+            for device_name, device in self.config.get("devices", {}).items():
+                if channel_id in device.get("channels", {}):
+                    device["channels"][channel_id].update(new_config)
+                    break
+
+            self.save_config()     # 💾 Sauvegarde la nouvelle configuration
+            self.update_display()  # 🔁 Rafraîchit l’affichage
 
     def start_measurement(self):
         """Start acquisition"""

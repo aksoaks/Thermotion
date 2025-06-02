@@ -8,13 +8,13 @@
           "visible": true
         },
         "cDAQ2Mod1/ai1": {
-          "color": " #edfebd",
-          "display_name": "INV2",
+          "color": "#edfebd",
+          "display_name": "3",
           "visible": true
         },
         "cDAQ2Mod1/ai2": {
-          "color": " #8ffc82",
-          "display_name": "INV3",
+          "color": "#8ffc82",
+          "display_name": "3",
           "visible": true
         },
         "cDAQ2Mod1/ai3": {

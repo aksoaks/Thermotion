@@ -240,26 +240,31 @@ class DeviceScannerDialog(QDialog):
         }
 
         for group, name_edit, device in self.device_widgets:
-            if group.isChecked():
-                device_entry = {
-                    "display_name": name_edit.text(),
-                    "channels": {}
-                }
+            device_entry = {
+            "display_name": name_edit.text(),
+            "enabled": group.isChecked(),  # ✅ on ajoute le flag enabled
+            "channels": {}
+        }
 
-                try:
-                    channels = [c.name.split('/')[-1] for c in device.ai_physical_chans]
-                    for ch in sorted(channels):
-                        channel_id = f"{device.name}/{ch}"
-                        ch_data = self.channel_custom_data.get(channel_id, {
-                            "display_name": ch,
-                            "color": "#{:06x}".format(hash(channel_id) % 0xffffff),
-                            "visible": True
-                        })
-                        device_entry["channels"][channel_id] = ch_data
-                except Exception as e:
-                    QMessageBox.warning(self, "Warning", f"Error collecting channels:\n{str(e)}")
+        try:
+            channels = [c.name.split('/')[-1] for c in device.ai_physical_chans]
+            for ch in sorted(channels):
+                channel_id = f"{device.name}/{ch}"
+                ch_data = self.channel_custom_data.get(channel_id, {
+                    "display_name": ch,
+                    "color": "#{:06x}".format(hash(channel_id) % 0xffffff),
+                    "visible": True
+                })
 
-                config["devices"][device.name] = device_entry
+                # ✅ Ajouter "enabled" en fonction du checkbox de canal
+                checkbox = self.channel_checkboxes.get(channel_id)
+                ch_data["enabled"] = checkbox.isChecked() if checkbox else True
+
+                device_entry["channels"][channel_id] = ch_data
+        except Exception as e:
+            QMessageBox.warning(self, "Warning", f"Error collecting channels:\n{str(e)}")
+
+        config["devices"][device.name] = device_entry
 
         self.config_updated.emit(config)
         self.accept()
@@ -267,27 +272,36 @@ class DeviceScannerDialog(QDialog):
     def retry_detection(self):
         self.devices = self.detect_devices()
 
-        # Nettoyer l'ancien layout
-        old_layout = self.layout()
-        if old_layout is not None:
-            while old_layout.count():
-                item = old_layout.takeAt(0)
-                widget = item.widget()
-                if widget is not None:
-                    widget.deleteLater()
-
-        # Recréer un layout de base
-        layout = QVBoxLayout()
+        # Nettoyer l'ancien layout proprement
+        while self.layout().count():
+            item = self.layout().takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
 
         if not self.devices:
-            layout.addWidget(QLabel("No NI-DAQmx modules detected"))
-            retry_btn = QPushButton("Retry")
-            retry_btn.clicked.connect(self.retry_detection)
-            layout.addWidget(retry_btn)
-            self.setLayout(layout)
+            self.show_no_device_message()  # ✅ utilise la méthode standardisée
             return
 
-        # Si devices trouvés → reconstruire toute l’UI normalement
-        self.setLayout(layout)
+        # Recréer toute l’UI si devices détectés
         self.init_ui()
 
+
+    def show_no_device_message(self):
+        # Nettoie la fenêtre
+        while self.layout().count():
+            item = self.layout().takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+
+        # Message
+        label = QLabel("No devices found.")
+        label.setAlignment(Qt.AlignCenter)
+        self.layout().addWidget(label)
+
+        # Bouton Retry
+        retry_btn = QPushButton("Retry")
+        retry_btn.setFixedWidth(100)
+        retry_btn.clicked.connect(self.retry_scan)
+        self.layout().addWidget(retry_btn)
