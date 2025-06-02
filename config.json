@@ -3,8 +3,8 @@
     "cDAQ2Mod1": {
       "channels": {
         "cDAQ2Mod1/ai0": {
-          "color": " #000000",
-          "display_name": "INV 1afaefa",
+          "color": "  #000000",
+          "display_name": "1",
           "visible": true
         },
         "cDAQ2Mod1/ai1": {
@@ -43,7 +43,7 @@
           "visible": true
         }
       },
-      "display_name": "Efaefae"
+      "display_name": "ABCD"
     },
     "cDAQ2Mod2": {
       "channels": {
@@ -88,7 +88,7 @@
           "visible": true
         }
       },
-      "display_name": "cDAQ2Mod2"
+      "display_name": "EFGH"
     },
     "cDAQ2Mod3": {
       "channels": {
@@ -133,52 +133,52 @@
           "visible": true
         }
       },
-      "display_name": "cDAQ2Mod3"
+      "display_name": "IJKL"
     },
     "cDAQ2Mod4": {
       "channels": {
         "cDAQ2Mod4/ai0": {
-          "color": "#f395a5",
+          "color": "#f5589b",
           "display_name": "ai0",
           "visible": true
         },
         "cDAQ2Mod4/ai1": {
-          "color": "#132255",
+          "color": "#08b35c",
           "display_name": "ai1",
           "visible": true
         },
         "cDAQ2Mod4/ai2": {
-          "color": "#d4c8b0",
+          "color": "#edfe9c",
           "display_name": "ai2",
           "visible": true
         },
         "cDAQ2Mod4/ai3": {
-          "color": "#67e237",
+          "color": "#6a1208",
           "display_name": "ai3",
           "visible": true
         },
         "cDAQ2Mod4/ai4": {
-          "color": "#52067a",
+          "color": "#1c2a06",
           "display_name": "ai4",
           "visible": true
         },
         "cDAQ2Mod4/ai5": {
-          "color": "#19222f",
+          "color": "#6b0a48",
           "display_name": "ai5",
           "visible": true
         },
         "cDAQ2Mod4/ai6": {
-          "color": "#b3470c",
+          "color": "#c127c7",
           "display_name": "ai6",
           "visible": true
         },
         "cDAQ2Mod4/ai7": {
-          "color": "#7a484a",
+          "color": "#bbf8a7",
           "display_name": "ai7",
           "visible": true
         }
       },
-      "display_name": "cDAQ2Mod4"
+      "display_name": "MNOP"
     }
   },
   "version": 1

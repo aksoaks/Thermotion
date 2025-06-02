@@ -63,7 +63,7 @@ class ChannelConfigDialog(QDialog):
     def get_config(self):
         return {
             "display_name": self.name_edit.text(),
-            "color": self.color_btn.styleSheet().split(':')[1].split(';')[0],
+            "color": self.color_btn.styleSheet().split(':')[1].split(';')[0].strip(),
             "visible": True
         }
 
@@ -266,4 +266,28 @@ class DeviceScannerDialog(QDialog):
 
     def retry_detection(self):
         self.devices = self.detect_devices()
+
+        # Nettoyer l'ancien layout
+        old_layout = self.layout()
+        if old_layout is not None:
+            while old_layout.count():
+                item = old_layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+
+        # Recréer un layout de base
+        layout = QVBoxLayout()
+
+        if not self.devices:
+            layout.addWidget(QLabel("No NI-DAQmx modules detected"))
+            retry_btn = QPushButton("Retry")
+            retry_btn.clicked.connect(self.retry_detection)
+            layout.addWidget(retry_btn)
+            self.setLayout(layout)
+            return
+
+        # Si devices trouvés → reconstruire toute l’UI normalement
+        self.setLayout(layout)
         self.init_ui()
+

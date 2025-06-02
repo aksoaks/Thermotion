@@ -52,6 +52,7 @@ class MainWindow(QMainWindow):
         self.graph_items = {}
         self.init_ui()
         self.load_config()
+        self.check_devices_online()
     
         if self.config.get("devices"):
             self.update_display()
@@ -126,31 +127,31 @@ class MainWindow(QMainWindow):
             self.save_config()
 
     def check_devices_online(self):
-        """Check if configured devices are online"""
         try:
             system = nidaqmx.system.System.local()
-            online_devices = [d.name for d in system.devices]
-            
-            for module_name in self.module_widgets:
-                device_name = next((k for k,v in self.config["devices"].items() 
-                                if v["display_name"] == module_name), None)
-                if device_name and device_name not in online_devices:
-                    # Add offline indicator
-                    for i in range(self.channel_list.count()):
-                        item = self.channel_list.item(i)
-                        widget = self.channel_list.itemWidget(item)
-                        if widget:
-                            for child in widget.findChildren(QLabel):
-                                if module_name in child.text():
-                                    # ✅ Ajoute ton label (offline) ici
-                                    offline_label = QLabel("(offline)")
-                                    offline_label.setStyleSheet("color: red;")
-                                    layout = widget.layout()
-                                    if layout:
-                                        layout.addWidget(offline_label)
+            online_device_names = [d.name for d in system.devices]
+
+            for device_name, device_info in self.config.get("devices", {}).items():
+                display_name = device_info.get("display_name", device_name)
+                is_online = device_name in online_device_names
+
+                for i in range(self.channel_list.count()):
+                    item = self.channel_list.item(i)
+                    widget = self.channel_list.itemWidget(item)
+                    if widget:
+                        layout = widget.layout()
+                        if layout:
+                            for j in range(layout.count()):
+                                child = layout.itemAt(j).widget()
+                                if isinstance(child, QLabel) and display_name in child.text():
+                                    # Supprime ancien label
+                                    text_base = display_name.split(" (offline)")[0]
+                                    child.setText(text_base + (" (offline)" if not is_online else ""))
+                                    child.setStyleSheet("color: red;" if not is_online else "")
                                     break
         except Exception as e:
             print(f"Device check error: {str(e)}")
+
 
     def save_config(self):
         """Save config to file"""
@@ -163,7 +164,7 @@ class MainWindow(QMainWindow):
     def scan_devices(self):
         """Open device scanner dialog"""
         dialog = DeviceScannerDialog(self, existing_config=self.config)
-        dialog.config_updated.connect(self.update_config)
+        dialog.config_updated.connect(self.update_config_and_refresh_channels)
         dialog.exec()
 
     def update_config(self, new_config):
@@ -302,8 +303,8 @@ class MainWindow(QMainWindow):
                 # Edit button
                 edit_btn = QPushButton()
                 edit_btn.setIcon(QIcon.fromTheme("document-edit"))
-                edit_btn = QPushButton("✏️")  # Unicode pencil character
-                edit_btn.setStyleSheet("font-size: 14px; padding: 0px;")
+                edit_btn.setText("🖊")
+                edit_btn.setStyleSheet("color: white; background-color: transparent; border: none; font-size: 14px; padding: 0px;")
                 edit_btn.setFixedSize(24, 24)
                 edit_btn.setFixedSize(24, 24)
                 edit_btn.clicked.connect(
@@ -415,3 +416,7 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         QMessageBox.information(self, "Info", "Measurement stopped (simulation)")
+
+    def update_config_and_refresh_channels(self, new_config):
+        self.config = new_config
+        self.refresh_active_channels()      
