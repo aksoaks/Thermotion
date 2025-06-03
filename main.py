@@ -15,6 +15,6 @@ if __name__ == "__main__":
     if not QIcon.hasThemeIcon("document-edit"):
         QIcon.setThemeName("breeze")
 
-    window = MainWindow()
+    window = MainWindow()   
     window.show()
     sys.exit(app.exec())

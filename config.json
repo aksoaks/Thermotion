@@ -3,182 +3,226 @@
     "cDAQ2Mod1": {
       "channels": {
         "cDAQ2Mod1/ai0": {
-          "color": "  #000000",
-          "display_name": "1",
-          "visible": true
+          "color": "#19a337",
+          "display_name": "A",
+          "enabled": true,
+          "visible": true,
+          "thermocouple_type": "T"
         },
         "cDAQ2Mod1/ai1": {
-          "color": "#edfebd",
-          "display_name": "3",
-          "visible": true
+          "color": "#ad646c",
+          "display_name": "2",
+          "enabled": true,
+          "visible": true,
+          "thermocouple_type": "T"
         },
         "cDAQ2Mod1/ai2": {
-          "color": "#8ffc82",
+          "color": "#01f6ee",
           "display_name": "3",
-          "visible": true
+          "enabled": true,
+          "visible": true,
+          "thermocouple_type": "T"
         },
         "cDAQ2Mod1/ai3": {
-          "color": "#474a6d",
-          "display_name": "ai3",
-          "visible": true
+          "color": "#b6c832",
+          "display_name": "4",
+          "enabled": true,
+          "visible": true,
+          "thermocouple_type": "T"
         },
         "cDAQ2Mod1/ai4": {
-          "color": "#b5e59c",
-          "display_name": "ai4",
-          "visible": true
+          "color": "#269508",
+          "display_name": "5",
+          "enabled": true,
+          "visible": true,
+          "thermocouple_type": "T"
         },
         "cDAQ2Mod1/ai5": {
-          "color": "#c1f98a",
-          "display_name": "ai5",
-          "visible": true
+          "color": "#d5a64f",
+          "display_name": "6",
+          "enabled": true,
+          "visible": true,
+          "thermocouple_type": "T"
         },
         "cDAQ2Mod1/ai6": {
-          "color": "#725caa",
-          "display_name": "ai6",
-          "visible": true
+          "color": "#57a86f",
+          "display_name": "7",
+          "enabled": true,
+          "visible": true,
+          "thermocouple_type": "T"
         },
         "cDAQ2Mod1/ai7": {
-          "color": "#61f34b",
-          "display_name": "ai7",
-          "visible": true
+          "color": "#6892f3",
+          "display_name": "8",
+          "enabled": true,
+          "visible": true,
+          "thermocouple_type": "T"
         }
       },
-      "display_name": "ABCD"
+      "display_name": "EFzef",
+      "enabled": true
     },
     "cDAQ2Mod2": {
       "channels": {
         "cDAQ2Mod2/ai0": {
-          "color": "#e58674",
-          "display_name": "ai0",
+          "color": "#1e5c96",
+          "display_name": "a",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod2/ai1": {
-          "color": "#363ba7",
+          "color": "#ce84d8",
           "display_name": "ai1",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod2/ai2": {
-          "color": "#affa5b",
+          "color": "#ca44a2",
           "display_name": "ai2",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod2/ai3": {
-          "color": "#6e41ab",
+          "color": "#6f8e07",
           "display_name": "ai3",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod2/ai4": {
-          "color": "#b048c1",
+          "color": "#ffea1b",
           "display_name": "ai4",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod2/ai5": {
-          "color": "#845ac1",
+          "color": "#5a18ce",
           "display_name": "ai5",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod2/ai6": {
-          "color": "#4dfa97",
+          "color": "#8be7d2",
           "display_name": "ai6",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod2/ai7": {
-          "color": "#56c95d",
+          "color": "#ff2bb8",
           "display_name": "ai7",
+          "enabled": true,
           "visible": true
         }
       },
-      "display_name": "EFGH"
+      "display_name": "B",
+      "enabled": true
     },
     "cDAQ2Mod3": {
       "channels": {
         "cDAQ2Mod3/ai0": {
-          "color": "#60259f",
+          "color": "#faf169",
           "display_name": "ai0",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod3/ai1": {
-          "color": "#a9c684",
+          "color": "#eeda44",
           "display_name": "ai1",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod3/ai2": {
-          "color": "#e1a207",
+          "color": "#fdc64d",
           "display_name": "ai2",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod3/ai3": {
-          "color": "#a5d07e",
+          "color": "#7601ef",
           "display_name": "ai3",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod3/ai4": {
-          "color": "#55953c",
+          "color": "#bf01d8",
           "display_name": "ai4",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod3/ai5": {
-          "color": "#d91476",
+          "color": "#b76151",
           "display_name": "ai5",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod3/ai6": {
-          "color": "#55e4b7",
+          "color": "#a5cf81",
           "display_name": "ai6",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod3/ai7": {
-          "color": "#e66749",
+          "color": "#f5cc00",
           "display_name": "ai7",
+          "enabled": true,
           "visible": true
         }
       },
-      "display_name": "IJKL"
+      "display_name": "C",
+      "enabled": true
     },
     "cDAQ2Mod4": {
       "channels": {
         "cDAQ2Mod4/ai0": {
           "color": "#f5589b",
           "display_name": "ai0",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod4/ai1": {
           "color": "#08b35c",
           "display_name": "ai1",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod4/ai2": {
           "color": "#edfe9c",
           "display_name": "ai2",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod4/ai3": {
           "color": "#6a1208",
           "display_name": "ai3",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod4/ai4": {
           "color": "#1c2a06",
           "display_name": "ai4",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod4/ai5": {
           "color": "#6b0a48",
           "display_name": "ai5",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod4/ai6": {
           "color": "#c127c7",
           "display_name": "ai6",
+          "enabled": true,
           "visible": true
         },
         "cDAQ2Mod4/ai7": {
           "color": "#bbf8a7",
           "display_name": "ai7",
+          "enabled": true,
           "visible": true
         }
       },
-      "display_name": "MNOP"
+      "display_name": "D",
+      "enabled": true
     }
   },
   "version": 1

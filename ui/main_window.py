@@ -11,8 +11,8 @@ if PROJECT_ROOT not in sys.path:
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QPushButton, QLabel, QDialog, QLineEdit, QColorDialog, QListWidget,
                               QListWidgetItem, QCheckBox, QScrollArea, QGroupBox, QMessageBox,
-                              QFrame, QSizePolicy)
-from PySide6.QtCore import Qt, Signal, QSize
+                              QFrame, QSizePolicy,QInputDialog)
+from PySide6.QtCore import Qt, Signal, QSize, QThread, QTimer
 from PySide6.QtGui import QColor, QIcon, QFont, QPixmap
 import pyqtgraph as pg
 import nidaqmx.system
@@ -21,6 +21,10 @@ from nidaqmx.errors import DaqError
 from ui.dialogs import ChannelConfigDialog, DeviceScannerDialog
 from ui.widgets import ChannelListWidget
 from utils.style import MAIN_WINDOW_STYLE
+from acquisition.acquisition_worker import AcquisitionWorker
+from acquisition.acquisition_worker import read_all_temperatures
+import numpy as np
+from nidaqmx.system import System
 
 CONFIG_FILE = "config.json"
 
@@ -51,12 +55,22 @@ class MainWindow(QMainWindow):
         self.module_widgets = {}  # Initialisation du dictionnaire
         self.graph_items = {}
         self.init_ui()
+                
         self.load_config()
         self.check_devices_online()
     
         if self.config.get("devices"):
             self.update_display()
             self.check_devices_online()  # Ajoutez cette ligne
+
+        self.worker = None
+        self.worker_thread = None
+
+        self.device_poll_timer = QTimer(self)
+        self.device_poll_timer.setInterval(3000)  # Toutes les 3 secondes
+        self.device_poll_timer.timeout.connect(self.check_device_status)
+        self.device_poll_timer.start()
+        self.acquisition_thread = None
 
     def init_ui(self):
         central = QWidget()
@@ -91,18 +105,19 @@ class MainWindow(QMainWindow):
         # Buttons
         btn_layout = QHBoxLayout()
 
-        self.scan_btn = QPushButton("Scan Devices")
-        self.scan_btn.clicked.connect(self.scan_devices)
+        self.scan_btn = QPushButton("Configure")
+        self.scan_btn.clicked.connect(self.configure_devices)
         btn_layout.addWidget(self.scan_btn)
 
         self.start_btn = QPushButton("Start")
         self.start_btn.setEnabled(False)
-        self.start_btn.clicked.connect(self.start_measurement)
+        self.start_btn.clicked.connect(self.start_acquisition)
         btn_layout.addWidget(self.start_btn)
 
         self.stop_btn = QPushButton("Stop")
         self.stop_btn.setEnabled(False)
         self.stop_btn.clicked.connect(self.stop_measurement)
+        self.stop_btn.clicked.connect(self.stop_acquisition)
         btn_layout.addWidget(self.stop_btn)
 
         control_layout.addLayout(btn_layout)
@@ -161,12 +176,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Could not save config:\n{str(e)}")
 
-    def scan_devices(self):
-        """Open device scanner dialog"""
-        dialog = DeviceScannerDialog(self, existing_config=self.config)
-        dialog.config_updated.connect(self.update_config_and_refresh_channels)
-        dialog.exec()
-
     def update_config(self, new_config):
         """Update configuration"""
         self.config = new_config
@@ -175,7 +184,6 @@ class MainWindow(QMainWindow):
 
     def update_display(self):
         """Update UI based on current config"""
-        
         self.plot_widget.clear()
         self.channel_list.clear()
         self.graph_items = {}
@@ -193,14 +201,16 @@ class MainWindow(QMainWindow):
         # Organize channels by module
         modules = {}
         for device_name, device_cfg in self.config["devices"].items():
-           if not device_cfg.get("enabled", True):
+            if not device_cfg.get("enabled", True):
                 continue  # ❌ Ignorer module désactivé
-        module_name = device_cfg.get("display_name", device_name)
-        if module_name not in modules:
-            modules[module_name] = {
-                "device_name": device_name,
-                "channels": []
-            }
+
+            module_name = device_cfg.get("display_name", device_name)
+
+            if module_name not in modules:
+                modules[module_name] = {
+                    "device_name": device_name,
+                    "channels": []
+                }
 
             # Add simulated channels (replace with real channels)
             for channel_id, channel_data in device_cfg.get("channels", {}).items():
@@ -237,19 +247,54 @@ class MainWindow(QMainWindow):
             module_cb = QCheckBox()
             module_cb.setChecked(True)
             module_cb.stateChanged.connect(
-                lambda state, mn=module_name: self.toggle_module_visibility(mn, state)
+                partial(self.toggle_module_visibility, module_name)
             )
             header_layout.addWidget(module_cb)
 
-            # Centered module name
-            name_label = QLabel(module_name)
+            # Module name + status
+            status_layout = QHBoxLayout()
+            status_layout.setContentsMargins(0, 0, 0, 0)
+
+            # Round status indicator (green = online, red = offline)
+            status_indicator = QLabel()
+            status_indicator.setFixedSize(12, 12)
+            status_color = "#2ecc71" if device_cfg.get("online", True) else "#e74c3c"
+            status_indicator.setStyleSheet(f"""
+                background-color: {status_color};
+                border-radius: 6px;
+                border: 1px solid #333;
+            """)
+            status_layout.addWidget(status_indicator)
+
+            # Module name text
+            name_text = module_name
+            if not device_cfg.get("online", True):
+                name_text += " (offline)"
+
+            name_label = QLabel(name_text)
             name_label.setAlignment(Qt.AlignCenter)
-            name_label.setStyleSheet("""
+            name_label.setStyleSheet(f"""
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
+                color: white;
                 padding: 2px;
             """)
-            header_layout.addWidget(name_label, 1)  # Stretchable
+            status_layout.addWidget(name_label, 1)
+
+            # Wrapper widget
+            status_widget = QWidget()
+            status_widget.setLayout(status_layout)
+            header_layout.addWidget(status_widget, 1)
+
+            # 🖊️ Edit button for module name
+            edit_btn = QPushButton()
+            edit_icon_path = os.path.join(os.path.dirname(__file__), "../resources/edit_white.png")
+            edit_btn.setIcon(QIcon(edit_icon_path))
+            edit_btn.setIconSize(QSize(16, 16))
+            edit_btn.setStyleSheet("background-color: transparent; border: none;")
+            edit_btn.setFixedSize(24, 24)
+            edit_btn.clicked.connect(partial(self.edit_module_name, module_name))
+            header_layout.addWidget(edit_btn)
 
             header_item = QListWidgetItem()
             header_item.setFlags(header_item.flags() & ~Qt.ItemIsSelectable)
@@ -311,7 +356,6 @@ class MainWindow(QMainWindow):
                 edit_btn.setIcon(QIcon(edit_icon_path))
                 edit_btn.setIconSize(QSize(16, 16))
                 edit_btn.setStyleSheet("background-color: transparent; border: none;")
-                edit_btn.setFixedSize(24, 24)
                 edit_btn.setFixedSize(24, 24)
                 edit_btn.clicked.connect(
                     partial(self.edit_channel, channel["id"])
@@ -397,25 +441,21 @@ class MainWindow(QMainWindow):
         if channel_id not in self.graph_items:
             return
 
-        dialog = ChannelConfigDialog(self.graph_items[channel_id]["config"], self)
+        # Pass a copy to avoid modifying config before confirmation
+        original_config = self.graph_items[channel_id]["config"].copy()
+        dialog = ChannelConfigDialog(original_config, self)
+
         if dialog.exec() == QDialog.Accepted:
             new_config = dialog.get_config()
 
-            # 🛠️ Met à jour directement la configuration dans self.config
+            # ✅ Update in self.config
             for device_name, device in self.config.get("devices", {}).items():
                 if channel_id in device.get("channels", {}):
                     device["channels"][channel_id].update(new_config)
                     break
 
-            self.save_config()     # 💾 Sauvegarde la nouvelle configuration
-            self.update_display()  # 🔁 Rafraîchit l’affichage
-
-    def start_measurement(self):
-        """Start acquisition"""
-        self.scan_btn.setEnabled(False)
-        self.start_btn.setEnabled(False)
-        self.stop_btn.setEnabled(True)
-        QMessageBox.information(self, "Info", "Measurement started (simulation)")
+            self.save_config()
+            self.update_display()
 
     def stop_measurement(self):
         """Stop acquisition"""
@@ -426,4 +466,101 @@ class MainWindow(QMainWindow):
 
     def update_config_and_refresh_channels(self, new_config):
         self.config = new_config
-        self.refresh_active_channels()      
+        self.save_config()
+        self.update_display()  # ✅ rafraîchit l’affichage     
+
+    def configure_devices(self):
+        dialog = DeviceScannerDialog(self, existing_config=self.config)
+        dialog.config_updated.connect(self.update_config_and_refresh_channels)
+        dialog.exec()
+
+    def edit_module_name(self, module_name):
+        text, ok = QInputDialog.getText(self, "Edit Module Name", "New name:", QLineEdit.Normal, module_name)
+        if ok and text:
+            # Trouver et mettre à jour le nom dans config
+            for device_name, device in self.config["devices"].items():
+                if device.get("display_name") == module_name:
+                    device["display_name"] = text
+                    break
+            self.save_config()
+            self.update_display()
+
+    def start_acquisition(self):
+        if self.acquisition_thread and self.acquisition_thread.isRunning():
+            self.stop_acquisition()
+
+        self.acquisition_thread = QThread()
+        self.worker = AcquisitionWorker(self.config)
+        self.worker.moveToThread(self.acquisition_thread)
+        
+        self.worker.new_data.connect(self.handle_new_data)
+        self.acquisition_thread.started.connect(self.worker.start)
+
+        # Connexions pour arrêt propre
+        self.worker.finished.connect(self.acquisition_thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.acquisition_thread.finished.connect(self.acquisition_thread.deleteLater)
+
+        self.acquisition_thread.start()
+
+        self.start_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
+
+    def stop_acquisition(self):
+        if self.worker:
+            self.worker.stop()
+        if self.acquisition_thread:
+            self.acquisition_thread.quit()
+            self.acquisition_thread.wait()
+
+        self.start_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+
+
+    def handle_new_data(self, data):
+        for channel_id, value in data.items():
+            curve = self.graph_items.get(channel_id)
+            if curve and isinstance(value, (int, float)):
+                curve.setData([0, 1, 2, 3, 4], [value]*5)
+
+                # ➕ Mettre à jour le nom dans la liste
+                config = self.graph_items[channel_id]["config"]
+                new_label = f"{config['display_name']} : {value:.1f}°C"
+
+                # Accès au widget dans QListWidget
+                item_count = self.channel_list.count()
+                for i in range(item_count):
+                    widget = self.channel_list.itemWidget(self.channel_list.item(i))
+                    if widget:
+                        label = widget.findChild(QLabel)
+                        if label and label.text().startswith(config['display_name']):
+                            label.setText(new_label)
+
+
+    def update_graph(self, data):
+        for channel_id, value in data.items():
+            if channel_id in self.graph_items:
+                curve = self.graph_items[channel_id]["curve"]
+                # ⚠️ À adapter pour stocker et faire défiler les valeurs
+                curve.setData([0, 1, 2, 3, 4], [value]*5)
+
+    def check_device_status(self):
+        try:
+            from nidaqmx.system import System
+            system = System.local()
+            connected_devices = set(dev.name for dev in system.devices)
+
+            updated = False
+            for device_name, device_cfg in self.config.get("devices", {}).items():
+                previous = device_cfg.get("online", True)
+                now = device_name in connected_devices
+                if previous != now:
+                    device_cfg["online"] = now
+                    updated = True
+                    print(f"[INFO] {device_name} is now {'online' if now else 'offline'}")
+
+            if updated:
+                self.update_display()
+
+        except Exception as e:
+            print(f"[ERROR] Failed to check device status: {e}")
