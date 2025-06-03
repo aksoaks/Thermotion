@@ -22,7 +22,6 @@ from ui.dialogs import ChannelConfigDialog, DeviceScannerDialog
 from ui.widgets import ChannelListWidget
 from utils.style import MAIN_WINDOW_STYLE
 from acquisition.acquisition_worker import AcquisitionWorker
-from acquisition.acquisition_worker import read_all_temperatures
 import numpy as np
 from nidaqmx.system import System
 
@@ -31,6 +30,7 @@ CONFIG_FILE = "config.json"
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        
         icon_path = "c:/user/SF66405/Code/Python/cDAQ/icon.ico"
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         self.module_widgets = {}  # Initialisation du dictionnaire
         self.graph_items = {}
         self.init_ui()
-                
+        self.acquisition_thread = None        
         self.load_config()
         self.check_devices_online()
     
@@ -251,9 +251,20 @@ class MainWindow(QMainWindow):
             )
             header_layout.addWidget(module_cb)
 
-            # Module name + status
+            # Wrapper layout pour le texte + indicateur
             status_layout = QHBoxLayout()
             status_layout.setContentsMargins(0, 0, 0, 0)
+            status_layout.setSpacing(5)
+
+            # Module name label
+            name_label = QLabel(module_name)
+            name_label.setAlignment(Qt.AlignCenter)
+            name_label.setStyleSheet("""
+                font-weight: bold;
+                font-size: 16px;
+                color: white;
+                padding: 2px;
+            """)
 
             # Round status indicator (green = online, red = offline)
             status_indicator = QLabel()
@@ -264,27 +275,17 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
                 border: 1px solid #333;
             """)
-            status_layout.addWidget(status_indicator)
 
-            # Module name text
-            name_text = module_name
-            if not device_cfg.get("online", True):
-                name_text += " (offline)"
+            # Ajouter les éléments à droite du nom
+            status_layout.addWidget(name_label, 1)  # Stretchable
+            status_layout.addWidget(status_indicator, 0, Qt.AlignRight)
 
-            name_label = QLabel(name_text)
-            name_label.setAlignment(Qt.AlignCenter)
-            name_label.setStyleSheet(f"""
-                font-weight: bold;
-                font-size: 14px;
-                color: white;
-                padding: 2px;
-            """)
-            status_layout.addWidget(name_label, 1)
-
-            # Wrapper widget
+            # Wrapper widget pour status layout
             status_widget = QWidget()
             status_widget.setLayout(status_layout)
-            header_layout.addWidget(status_widget, 1)
+
+            header_layout.addWidget(status_widget, 1)  # Stretchable
+
 
             # 🖊️ Edit button for module name
             edit_btn = QPushButton()
@@ -486,55 +487,68 @@ class MainWindow(QMainWindow):
             self.update_display()
 
     def start_acquisition(self):
+        if not self.start_btn.isEnabled():
+            return
+
+        self.start_btn.setEnabled(False)
+        self.stop_btn.setEnabled(False)
+
         if self.acquisition_thread and self.acquisition_thread.isRunning():
+            print("[DEBUG] Thread déjà actif → arrêt")
             self.stop_acquisition()
 
-        self.acquisition_thread = QThread()
         self.worker = AcquisitionWorker(self.config)
-        self.worker.moveToThread(self.acquisition_thread)
-        
-        self.worker.new_data.connect(self.handle_new_data)
-        self.acquisition_thread.started.connect(self.worker.start)
+        self.acquisition_thread = QThread()
 
-        # Connexions pour arrêt propre
+        self.worker.moveToThread(self.acquisition_thread)
+
+        self.worker.new_data.connect(self.handle_new_data)
         self.worker.finished.connect(self.acquisition_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.acquisition_thread.finished.connect(self.acquisition_thread.deleteLater)
 
+        self.acquisition_thread.started.connect(self.worker.start)
         self.acquisition_thread.start()
 
-        self.start_btn.setEnabled(False)
-        self.stop_btn.setEnabled(True)
+        QTimer.singleShot(500, lambda: self.stop_btn.setEnabled(True))
+
 
     def stop_acquisition(self):
         if self.worker:
             self.worker.stop()
+            # Do NOT set self.worker = None immediately
         if self.acquisition_thread:
             self.acquisition_thread.quit()
             self.acquisition_thread.wait()
 
+        self.worker = None
+        self.acquisition_thread = None
+
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
 
-
     def handle_new_data(self, data):
         for channel_id, value in data.items():
-            curve = self.graph_items.get(channel_id)
-            if curve and isinstance(value, (int, float)):
-                curve.setData([0, 1, 2, 3, 4], [value]*5)
+            curve = self.graph_items.get(channel_id, {}).get("curve")
+            config = self.graph_items.get(channel_id, {}).get("config")
 
-                # ➕ Mettre à jour le nom dans la liste
-                config = self.graph_items[channel_id]["config"]
+            if curve and isinstance(value, (int, float)):
+                curve.setData([0, 1, 2, 3, 4], [value] * 5)
+
+                # ➕ Met à jour le nom avec la température
                 new_label = f"{config['display_name']} : {value:.1f}°C"
 
-                # Accès au widget dans QListWidget
+                # 🔍 Mise à jour du QLabel correspondant dans la liste
                 item_count = self.channel_list.count()
                 for i in range(item_count):
-                    widget = self.channel_list.itemWidget(self.channel_list.item(i))
+                    item = self.channel_list.item(i)
+                    widget = self.channel_list.itemWidget(item)
                     if widget:
-                        label = widget.findChild(QLabel)
-                        if label and label.text().startswith(config['display_name']):
-                            label.setText(new_label)
+                        labels = widget.findChildren(QLabel)
+                        for label in labels:
+                            if label.text().startswith(config['display_name']):
+                                label.setText(new_label)
+                                break  # 🛑 On a trouvé le bon QLabel, on sort
 
 
     def update_graph(self, data):
@@ -554,13 +568,25 @@ class MainWindow(QMainWindow):
             for device_name, device_cfg in self.config.get("devices", {}).items():
                 previous = device_cfg.get("online", True)
                 now = device_name in connected_devices
+
                 if previous != now:
                     device_cfg["online"] = now
                     updated = True
-                    print(f"[INFO] {device_name} is now {'online' if now else 'offline'}")
+                    status = "connecté" if now else "déconnecté"
+                    print(f"[INFO] {device_name} est maintenant {status}")
+                    self.show_status_message(f"{device_name} est maintenant {status}")
 
             if updated:
                 self.update_display()
 
         except Exception as e:
             print(f"[ERROR] Failed to check device status: {e}")
+
+
+    def closeEvent(self, event):
+        print("[DEBUG] Fermeture de l'application...")
+        self.stop_acquisition()
+        event.accept()
+
+    def show_status_message(self, message: str, duration_ms: int = 3000):
+        self.statusBar().showMessage(message, duration_ms)

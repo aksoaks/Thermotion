@@ -60,7 +60,8 @@
         }
       },
       "display_name": "EFzef",
-      "enabled": true
+      "enabled": true,
+      "online": true
     },
     "cDAQ2Mod2": {
       "channels": {
@@ -114,7 +115,8 @@
         }
       },
       "display_name": "B",
-      "enabled": true
+      "enabled": true,
+      "online": true
     },
     "cDAQ2Mod3": {
       "channels": {
@@ -168,7 +170,8 @@
         }
       },
       "display_name": "C",
-      "enabled": true
+      "enabled": true,
+      "online": true
     },
     "cDAQ2Mod4": {
       "channels": {
@@ -222,7 +225,8 @@
         }
       },
       "display_name": "D",
-      "enabled": true
+      "enabled": true,
+      "online": true
     }
   },
   "version": 1
