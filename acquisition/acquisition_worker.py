@@ -22,24 +22,26 @@ class AcquisitionWorker(QObject):
         super().__init__()
         self.config = config
         self.running = False
-        self.timer = None  # Déclaré mais pas encore instancié
+        self.timer = None
 
     def start(self):
         self.running = True
-        self.timer = QTimer(self)
-        self.timer.setInterval(1000)
+        self.timer = QTimer()
+        self.timer.setInterval(1000)  # 1 sec
         self.timer.timeout.connect(self.acquire_once)
         self.timer.start()
 
     def stop(self):
         self.running = False
-        self.timer.stop()
+        if self.timer:
+            self.timer.stop()
+            self.timer.deleteLater()
+            self.timer = None
         self.finished.emit()
 
     def acquire_once(self):
         if not self.running:
             return
-
         readings = {}
         for device_name, dev_cfg in self.config.get("devices", {}).items():
             if not dev_cfg.get("enabled"):
