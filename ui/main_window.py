@@ -507,16 +507,17 @@ class MainWindow(QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.acquisition_thread.finished.connect(self.acquisition_thread.deleteLater)
 
-        self.acquisition_thread.started.connect(self.worker.start)
+        # 👉 Démarre le timer après que le thread ait démarré
+        self.acquisition_thread.started.connect(self.worker.start_timer)
+
         self.acquisition_thread.start()
 
         QTimer.singleShot(500, lambda: self.stop_btn.setEnabled(True))
 
-
     def stop_acquisition(self):
         if self.worker:
             self.worker.stop()
-            # Do NOT set self.worker = None immediately
+            
         if self.acquisition_thread:
             self.acquisition_thread.quit()
             self.acquisition_thread.wait()

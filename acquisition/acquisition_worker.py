@@ -26,18 +26,22 @@ class AcquisitionWorker(QObject):
 
     def start(self):
         self.running = True
-        self.timer = QTimer()
-        self.timer.setInterval(1000)  # 1 sec
-        self.timer.timeout.connect(self.acquire_once)
         self.timer.start()
 
     def stop(self):
-        self.running = False
         if self.timer:
             self.timer.stop()
             self.timer.deleteLater()
             self.timer = None
         self.finished.emit()
+
+
+    def start_timer(self):
+        self.timer = QTimer(self)
+        self.timer.setInterval(1000)
+        self.timer.timeout.connect(self.acquire_once)
+        self.timer.start()
+        self.running = True
 
     def acquire_once(self):
         if not self.running:
